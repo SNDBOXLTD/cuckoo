@@ -314,220 +314,125 @@ class BehaviorReconstructor(object):
         fn = getattr(self, "_api_%s" % event["api"], None)
         if fn is not None:
             ret = fn(
-                event["return_value"], event["arguments"], event.get("flags")
+                event["status"], event["arguments"], event.get("flags")
             )
             return ret or []
         return []
 
     # Generic file & directory stuff.
+    # TODO: Implement this using ZwCreateFile
+    # def _api_CreateDirectoryW(self, return_value, arguments, flags):
+    #     return single("directory_created", arguments["dirpath"])
+    #
+    # _api_CreateDirectoryExW = _api_CreateDirectoryW
+    #
+    # def _api_RemoveDirectoryA(self, return_value, arguments, flags):
+    #     return single("directory_removed", arguments["dirpath"])
+    #
+    # _api_RemoveDirectoryW = _api_RemoveDirectoryA
+    #
+    # def _api_MoveFileWithProgressW(self, return_value, arguments, flags):
+    #     return single("file_moved", (
+    #         arguments["oldfilepath"], arguments["newfilepath"]
+    #     ))
+    #
+    # def _api_CopyFileA(self, return_value, arguments, flags):
+    #     return single("file_copied", (
+    #         arguments["oldfilepath"], arguments["newfilepath"]
+    #     ))
+    #
+    # _api_CopyFileW = _api_CopyFileA
+    # _api_CopyFileExW = _api_CopyFileA
 
-    def _api_CreateDirectoryW(self, return_value, arguments, flags):
-        return single("directory_created", arguments["dirpath"])
 
-    _api_CreateDirectoryExW = _api_CreateDirectoryW
+    def _api_ZwDeleteFile(self, return_value, arguments, flags):
+        return single("file_deleted", arguments["FilePath"])
 
-    def _api_RemoveDirectoryA(self, return_value, arguments, flags):
-        return single("directory_removed", arguments["dirpath"])
+    def _api_ZwCreateFile(self, status, arguments, flags):
+        self.files[arguments["Handle"]] = arguments["FilePath"]
 
-    _api_RemoveDirectoryW = _api_RemoveDirectoryA
+        options = {
+            'file_superseded': 0,
+            'file_opened': 1,
+            'file_created': 2,
+            'file_overwritten': 3,
+            'file_exists': 4,
+            'file_does_not_exist': 5
+        }
 
-    def _api_MoveFileWithProgressW(self, return_value, arguments, flags):
-        return single("file_moved", (
-            arguments["oldfilepath"], arguments["newfilepath"]
-        ))
+        if status:
+            status_info = int(arguments.get("Information", ""), 0)
+            print arguments
 
-    def _api_CopyFileA(self, return_value, arguments, flags):
-        return single("file_copied", (
-            arguments["oldfilepath"], arguments["newfilepath"]
-        ))
+            if status_info == options["file_overwritten"] or status_info == options["file_superseded"]:
+                return single("file_recreated", arguments["FilePath"])
 
-    _api_CopyFileW = _api_CopyFileA
-    _api_CopyFileExW = _api_CopyFileA
+            elif status_info == options["file_exists"]:
+                return single("file_opened", arguments["FilePath"])
 
-    def _api_DeleteFileA(self, return_value, arguments, flags):
-        return single("file_deleted", arguments["filepath"])
+            elif status_info == options["file_does_not_exist"]:
+                return single("file_failed", arguments["FilePath"])
 
-    _api_DeleteFileW = _api_DeleteFileA
-    _api_NtDeleteFile = _api_DeleteFileA
-
-    def _api_FindFirstFileExA(self, return_value, arguments, flags):
-        return single("directory_enumerated", arguments["filepath"])
-
-    _api_FindFirstFileExW = _api_FindFirstFileExA
-
-    def _api_LdrLoadDll(self, return_value, arguments, flags):
-        return single("dll_loaded", arguments["module_name"])
-
-    def _api_NtCreateFile(self, return_value, arguments, flags):
-        self.files[arguments["file_handle"]] = arguments["filepath"]
-        if NT_SUCCESS(return_value):
-            status_info = flags.get("status_info", "").lower()
-            if status_info in ("file_overwritten", "file_superseded"):
-                return single("file_recreated", arguments["filepath"])
-            elif status_info == "file_exists":
-                return single("file_opened", arguments["filepath"])
-            elif status_info == "file_does_not_exist":
-                return single("file_failed", arguments["filepath"])
-            elif status_info == "file_created":
-                return single("file_created", arguments["filepath"])
+            elif status_info == options["file_created"]:
+                return single("file_created", arguments["FilePath"])
             else:
-                return single("file_opened", arguments["filepath"])
+                return single("file_opened", arguments["FilePath"])
         else:
-            return single("file_failed", arguments["filepath"])
+            return single("file_failed", arguments["FilePath"])
 
-    _api_NtOpenFile = _api_NtCreateFile
+    _api_ZwOpenFile = _api_ZwCreateFile
 
-    def _api_NtReadFile(self, return_value, arguments, flags):
-        h = arguments["file_handle"]
-        if NT_SUCCESS(return_value) and h in self.files:
+    def _api_ZwReadFile(self, status, arguments, flags):
+        h = arguments["FileHandle"]
+        if status and h in self.files:  # look for that specific handle in the recorded handle list
             return single("file_read", self.files[h])
 
-    def _api_NtWriteFile(self, return_value, arguments, flags):
-        h = arguments["file_handle"]
-        if NT_SUCCESS(return_value) and h in self.files:
+    def _api_ZwWriteFile(self, status, arguments, flags):
+        h = arguments["FileHandle"]
+        if status and h in self.files:
             return single("file_written", self.files[h])
 
-    def _api_GetFileAttributesW(self, return_value, arguments, flags):
-        return single("file_exists", arguments["filepath"])
-
-    _api_GetFileAttributesExW = _api_GetFileAttributesW
+    def _api_ZwQueryAttributesFile(self, return_value, arguments, flags):
+        return single("file_exists", arguments["FileName"])
 
     # Registry stuff.
 
-    def _api_RegOpenKeyExA(self, return_value, arguments, flags):
-        return single("regkey_opened", arguments["regkey"])
+    def _api_ZwOpenKey(self, status, arguments, flags):
+        return single("regkey_opened", arguments["ObjectName"])
 
-    _api_RegOpenKeyExW = _api_RegOpenKeyExA
-    _api_RegCreateKeyExA = _api_RegOpenKeyExA
-    _api_RegCreateKeyExW = _api_RegOpenKeyExA
+    _api_ZwOpenKeyEx = _api_ZwOpenKey
 
-    def _api_RegDeleteKeyA(self, return_value, arguments, flags):
-        return single("regkey_deleted", arguments["regkey"])
+    def _api_ZwCreateKey(self, status, arguments, flags):
+        key = "%s/%s" % (arguments["ObjectName"], arguments["RootDirectory"])
+        return single("regkey_opened", key)
 
-    _api_RegDeleteKeyW = _api_RegDeleteKeyA
-    _api_RegDeleteValueA = _api_RegDeleteKeyA
-    _api_RegDeleteValueW = _api_RegDeleteKeyA
-    _api_NtDeleteValueKey = _api_RegDeleteKeyA
+    def _api_ZwDeleteKey(self, status, arguments, flags):
+        return single("regkey_deleted", arguments["ValueName"])
 
-    def _api_RegQueryValueExA(self, return_value, arguments, flags):
-        return single("regkey_read", arguments["regkey"])
+    _api_ZwDeleteValueKey = _api_ZwDeleteKey
 
-    _api_RegQueryValueExW = _api_RegQueryValueExA
-    _api_NtQueryValueKey = _api_RegQueryValueExA
+    def _api_ZwQueryValueKey(self, status, arguments, flags):
+        return single("regkey_read", arguments["ValueName"])
 
-    def _api_RegSetValueExA(self, return_value, arguments, flags):
-        return single("regkey_written", arguments["regkey"])
+    def _api_ZwSetValueKey(self, status, arguments, flags):
+        return single("regkey_written", arguments["Data"])
 
-    _api_RegSetValueExW = _api_RegSetValueExA
-    _api_NtSetValueKey = _api_RegSetValueExA
-
-    def _api_NtClose(self, return_value, arguments, flags):
-        self.files.pop(arguments["handle"], None)
-
-    # Network stuff.
-
-    def _api_URLDownloadToFileW(self, return_value, arguments, flags):
-        return multiple(
-            ("downloads_file", arguments["url"]),
-            ("file_opened", arguments["filepath"]),
-            ("file_written", arguments["filepath"]),
-        )
-
-    def _api_InternetConnectA(self, return_value, arguments, flags):
-        return single("connects_host", arguments["hostname"])
-
-    _api_InternetConnectW = _api_InternetConnectA
-
-    def _api_InternetOpenUrlA(self, return_value, arguments, flags):
-        return single("fetches_url", arguments["url"])
-
-    _api_InternetOpenUrlW = _api_InternetOpenUrlA
-
-    def _api_DnsQuery_A(self, return_value, arguments, flags):
-        if arguments["hostname"]:
-            return single("resolves_host", arguments["hostname"])
-
-    _api_DnsQuery_W = _api_DnsQuery_A
-    _api_DnsQuery_UTF8 = _api_DnsQuery_A
-    _api_getaddrinfo = _api_DnsQuery_A
-    _api_GetAddrInfoW = _api_DnsQuery_A
-    _api_gethostbyname = _api_DnsQuery_A
-
-    def _api_connect(self, return_value, arguments, flags):
-        return single("connects_ip", arguments["ip_address"])
+    def _api_ZwClose(self, status, arguments, flags):
+        self.files.pop(arguments["Handle"], None)
 
     # Mutex stuff
 
-    def _api_NtCreateMutant(self, return_value, arguments, flags):
-        if arguments["mutant_name"]:
-            return single("mutex", arguments["mutant_name"])
-
-    _api_ConnectEx = _api_connect
+    def _api_ZwCreateMutant(self, return_value, arguments, flags):
+        if arguments["MutexName"]:
+            return single("mutex", arguments["MutexName"])
 
     # Process stuff.
 
-    def _api_CreateProcessInternalW(self, return_value, arguments, flags):
+    def _api_CreateUserProcess(self, return_value, arguments, flags):
         if arguments.get("track", True):
-            cmdline = arguments["command_line"] or arguments["filepath"]
+            cmdline = "%s %s" % (arguments["ImagePathName"], arguments["CommandLine"])
             return single("command_line", cmdline)
 
-    def _api_ShellExecuteExW(self, return_value, arguments, flags):
-        if arguments["parameters"]:
-            cmdline = "%s %s" % (arguments["filepath"], arguments["parameters"])
-        else:
-            cmdline = arguments["filepath"]
-        return single("command_line", cmdline)
-
-    def _api_system(self, return_value, arguments, flags):
-        return single("command_line", arguments["command"])
-
-    # WMI stuff.
-
-    def _api_IWbemServices_ExecQuery(self, return_value, arguments, flags):
-        return single("wmi_query", arguments["query"])
-
-    def _api_IWbemServices_ExecQueryAsync(self, return_value, arguments, flags):
-        return single("wmi_query", arguments["query"])
-
-    # GUIDs.
-
-    def _api_CoCreateInstance(self, return_value, arguments, flags):
-        return multiple(
-            ("guid", arguments["clsid"]),
-            ("guid", arguments["iid"]),
-        )
-
-    def _api_CoCreateInstanceEx(self, return_value, arguments, flags):
-        ret = [
-            ("guid", arguments["clsid"]),
-        ]
-        for iid in arguments["iid"]:
-            ret.append(("guid", iid))
-        return multiple(*ret)
-
-    def _api_CoGetClassObject(self, return_value, arguments, flags):
-        return multiple(
-            ("guid", arguments["clsid"]),
-            ("guid", arguments["iid"]),
-        )
-
-    # SSLv3 & TLS Master Secrets.
-
-    def _api_Ssl3GenerateKeyMaterial(self, return_value, arguments, flags):
-        if arguments["client_random"] and arguments["server_random"]:
-            return single("tls_master", (
-                arguments["client_random"],
-                arguments["server_random"],
-                arguments["master_secret"],
-            ))
-
-    def _api_PRF(self, return_value, arguments, flags):
-        if arguments["type"] == "key expansion":
-            return single("tls_master", (
-                arguments["client_random"],
-                arguments["server_random"],
-                arguments["master_secret"],
-            ))
 
 class RebootReconstructor(object):
     """Reconstructs the behavior as would be seen after a reboot."""
