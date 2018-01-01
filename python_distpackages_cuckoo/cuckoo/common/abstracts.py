@@ -777,6 +777,41 @@ class Signature(object):
             if item["pid"] == pid:
                 return item
 
+    def get_handle_by_call(self, call):
+        """Extract handles from a given API call
+
+        @param call: call to search in
+        @return: handles.
+        """
+        handles = []
+        for argument in call["arguments"]:
+            if "Handle" in argument:
+                handles.append(call["arguments"][argument])
+        return handles
+
+    def get_handles_by_pid(self, pid):
+        """Get calls grouped by handle of a process by its pid
+
+        @param pid: pid to search for.
+        @return: handles.
+        """
+        handles_in_use = {}
+        list_of_handle_uses = []
+
+        process = self.get_process_by_pid(pid)
+        calls = process.get("calls", [])
+
+        for call in calls:
+            handles = self.get_handle_by_call(call)
+            for handle in handles:
+                handles_in_use.setdefault(handle, []).append(call)
+                if call["api"] == "ZwClose":
+                    list_of_handle_uses.append(handles_in_use.pop(handle))
+
+        for handle, remaining_calls in handles_in_use.iteritems():
+            list_of_handle_uses.append(remaining_calls)
+        return list_of_handle_uses
+
     def get_summary(self, key=None, default=[]):
         """Get one or all values related to the global summary."""
         summary = self.get_results("behavior", {}).get("summary", {})
