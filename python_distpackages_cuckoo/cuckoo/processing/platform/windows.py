@@ -300,7 +300,7 @@ def NT_SUCCESS(value):
     return value % 2**32 < 0x80000000
 
 def single(key, value):
-    return [(key, value)]
+    return [(key, value.replace("\\??\\", ""))]
 
 def multiple(*l):
     return l
