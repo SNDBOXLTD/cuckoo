@@ -10,17 +10,22 @@ log = logging.getLogger(__name__)
 
 
 class Injection(Signature):
-    name = "Injection"
-    description = "Identifies classic process injections"
-    severity = 3
+    name = "thread_hijacking"
+    description = "Identifies thread hijacking"
+    severity = 5
     categories = ["Injection"]
     authors = ["Itay Huri"]
     minimum = "2.0"
     enabled = True
-    apinames = ["ZwOpenProcess",
-                "ZwAllocateVirtualMemory",
-                "ZwWriteVirtualMemory",
-                "ZwCreateThreadEx|ZwCreateThread"]
+    apinames = [
+        "ZwOpenThread",
+        "ZwGetContextThread",
+        "ZwSetContextThread"
+    ]
+    references = [
+        "http://www.rohitab.com/discuss/topic/40579-dll-injection-via-thread-hijacking/",
+        "https://reverse2learn.wordpress.com/2012/05/01/malware-reversing-part-1/"
+    ]
 
     def init(self):
         self.handle_uses = {}
