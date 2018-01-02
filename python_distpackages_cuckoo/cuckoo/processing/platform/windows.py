@@ -292,18 +292,59 @@ class WindowsMonitor(BehaviorHandler):
     def run(self):
         if not self.matched:
             return
-
+        for process in self.processes:
+            process['calls_by_handle'] = get_handles_in_process(process)
         self.processes.sort(key=lambda process: process["first_seen"])
         return self.processes
+
 
 def NT_SUCCESS(value):
     return value % 2**32 < 0x80000000
 
+
 def single(key, value):
     return [(key, value.replace("\\??\\", ""))]
 
+
 def multiple(*l):
     return l
+
+
+def get_handle_in_call(call):
+    """Extract handles from a given API call
+
+    @param call: call to search in
+    @return: handles
+    """
+    handles = []
+    for argument in call["arguments"]:
+        if "Handle" in argument:
+            handles.append(call["arguments"][argument])
+    return handles
+
+
+def get_handles_in_process(process):
+    """Get calls grouped by handle of a process
+
+    @param process: the process to get the handles of
+    @return: handles
+    """
+    handles_in_use = {}
+    list_of_handle_uses = []
+
+    calls = process.get("calls", [])
+
+    for call in calls:
+        handles = get_handle_in_call(call)
+        for handle in handles:
+            handles_in_use.setdefault(handle, []).append(call)
+            if call["api"] == "ZwClose":
+                list_of_handle_uses.append(handles_in_use.pop(handle))
+
+    for handle, remaining_calls in handles_in_use.iteritems():
+        list_of_handle_uses.append(remaining_calls)
+    return list_of_handle_uses
+
 
 class BehaviorReconstructor(object):
     """Reconstructs the behavior of behavioral API logs."""
