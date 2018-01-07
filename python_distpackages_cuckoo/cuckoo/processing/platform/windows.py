@@ -386,6 +386,10 @@ class BehaviorReconstructor(object):
     # _api_CopyFileExW = _api_CopyFileA
 
 
+    def _api_ZwSetInformationFile(self, return_value, arguments, flags):
+        if arguments["FileInformationClass"] == "0x0000000A":
+            return single("file_renamed", arguments["FilePath"])
+
     def _api_ZwDeleteFile(self, return_value, arguments, flags):
         return single("file_deleted", arguments["FilePath"])
 
@@ -444,7 +448,7 @@ class BehaviorReconstructor(object):
     _api_ZwOpenKeyEx = _api_ZwOpenKey
 
     def _api_ZwCreateKey(self, status, arguments, flags):
-        key = "%s/%s" % (arguments["ObjectName"], arguments["RootDirectory"])
+        key = "%s/%s" % (arguments["RootDirectory"], arguments["ObjectName"])
         return single("regkey_opened", key)
 
     def _api_ZwDeleteKey(self, status, arguments, flags):
