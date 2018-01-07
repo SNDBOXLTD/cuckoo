@@ -303,7 +303,13 @@ def NT_SUCCESS(value):
 
 
 def single(key, value):
-    return [(key, value.replace("\\??\\", ""))]
+    if value != "(null)":
+        return [(key, normalize_path(value))]
+
+
+def normalize_path(path):
+    normal_path = path.replace("\\??\\", "")
+    return re.sub(r':\\Users\\+(Jack)', ':\Users\<USER>', normal_path)
 
 
 def multiple(*l):
@@ -469,7 +475,8 @@ class BehaviorReconstructor(object):
 
     def _api_ZwCreateMutant(self, return_value, arguments, flags):
         if arguments["MutexName"]:
-            return single("mutex", arguments["MutexName"])
+            mutex = arguments["MutexName"].replace("!jack", "!<USER>")
+            return single("mutex", mutex)
 
     # Process stuff.
 
