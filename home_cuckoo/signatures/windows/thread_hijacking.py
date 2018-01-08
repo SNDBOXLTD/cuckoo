@@ -9,7 +9,8 @@ from cuckoo.common.abstracts import Signature
 log = logging.getLogger(__name__)
 
 
-class Injection(Signature):
+class ThreadHijacking(Signature):
+    id = 3
     name = "thread_hijacking"
     description = "Identifies thread hijacking"
     severity = 5
@@ -17,6 +18,7 @@ class Injection(Signature):
     authors = ["Itay Huri"]
     minimum = "2.0"
     enabled = True
+    process_relationship = True
     apinames = [
         "ZwOpenThread",
         "ZwGetContextThread",

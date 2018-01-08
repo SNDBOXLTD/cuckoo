@@ -673,6 +673,7 @@ class Processing(object):
 
 class Signature(object):
     """Base class for Cuckoo signatures."""
+    id = None
     name = ""
     description = ""
     severity = 1
@@ -684,6 +685,8 @@ class Signature(object):
     platform = None
     alert = False
     enabled = True
+    process_relationship = False
+    indicator = True
     minimum = None
     maximum = None
 
@@ -1210,6 +1213,9 @@ class Signature(object):
     def results(self):
         """Turn this signature into actionable results."""
         return dict(name=self.name,
+                    id=self.id,
+                    process_relationship=self.process_relationship,
+                    indicator=self.indicator,
                     description=self.description,
                     severity=self.severity,
                     families=self.families,

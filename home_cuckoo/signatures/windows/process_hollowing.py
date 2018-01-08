@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 
 class ProcessHollowing(Signature):
+    id = 2
     name = "process_hollowing"
     description = "Identifies process hollowing injection"
     severity = 5
@@ -18,6 +19,7 @@ class ProcessHollowing(Signature):
     authors = ["Itay Huri"]
     minimum = "2.0"
     enabled = True
+    process_relationship = True
 
     matches = [
         ["ZwCreateUserProcess", "ZwUnmapViewOfSection"],
@@ -50,6 +52,12 @@ class ProcessHollowing(Signature):
         return False
 
     @staticmethod
+    def extract_created_process(calls):
+        for call in calls:
+            if call["api"] == "ZwCreateUserProcess":
+                return int(call["arguments"]["ChildPID"], 16)
+
+    @staticmethod
     def remove_duplicates_order(list_to_order):
         """
         Removes duplicates from a list of API calls and orders it by time
@@ -69,5 +77,7 @@ class ProcessHollowing(Signature):
                         tracks.extend(calls)
                         seen.append(match)
                 if len(seen) == len(self.matches):
-                    self.mark(calls_in_handle=self.remove_duplicates_order(tracks), pid=pid)
+                    self.mark(calls_in_handle=self.remove_duplicates_order(tracks),
+                              child=self.extract_created_process(tracks),
+                              pid=pid)
         return self.has_marks()

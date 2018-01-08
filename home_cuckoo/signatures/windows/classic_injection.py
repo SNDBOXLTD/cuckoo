@@ -10,6 +10,7 @@ log = logging.getLogger(__name__)
 
 
 class Injection(Signature):
+    id = 1
     name = "Injection"
     description = "Identifies classic process injections"
     severity = 3
@@ -17,6 +18,7 @@ class Injection(Signature):
     authors = ["Itay Huri"]
     minimum = "2.0"
     enabled = True
+    process_relationship = True
     apinames = ["ZwOpenProcess",
                 "ZwAllocateVirtualMemory",
                 "ZwWriteVirtualMemory",
@@ -44,6 +46,12 @@ class Injection(Signature):
             if indicator:
                 self.found_in_handle.append(indicator)
         return len(self.found_in_handle) != 0
+
+    @staticmethod
+    def extract_created_process(calls):
+        for call in calls:
+            if call["api"] == "ZwCreateUserProcess":
+                return int(call["arguments"]["ChildPID"], 16)
 
     def on_complete(self):
         for pid, handle_groups in self.handle_uses.items():
