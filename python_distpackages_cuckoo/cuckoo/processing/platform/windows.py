@@ -391,7 +391,6 @@ class BehaviorReconstructor(object):
     # _api_CopyFileW = _api_CopyFileA
     # _api_CopyFileExW = _api_CopyFileA
 
-
     def _api_ZwSetInformationFile(self, return_value, arguments, flags):
         if arguments["FileInformationClass"] == "0x0000000A":
             return single("file_renamed", arguments["FilePath"])

@@ -50,12 +50,14 @@ class Injection(Signature):
     @staticmethod
     def extract_created_process(calls):
         for call in calls:
-            if call["api"] == "ZwCreateUserProcess":
+            if call["api"] in ["ZwCreateThreadEx", "ZwCreateThread"]:
                 return int(call["arguments"]["ChildPID"], 16)
 
     def on_complete(self):
         for pid, handle_groups in self.handle_uses.items():
             for calls in handle_groups:
                 if self.is_suspicious_handle(calls) and len(self.found_in_handle) == len(self.apinames):
-                    self.mark(calls_in_handle=calls, pid=pid)
+                    self.mark(calls_in_handle=calls,
+                              pid=pid,
+                              child=self.extract_created_process(calls))
         return self.has_marks()
