@@ -448,24 +448,24 @@ class BehaviorReconstructor(object):
     # Registry stuff.
 
     def _api_ZwOpenKey(self, status, arguments, flags):
-        return single("regkey_opened", arguments["ObjectName"])
+        return single("registry_opened", arguments["ObjectName"])
 
     _api_ZwOpenKeyEx = _api_ZwOpenKey
 
     def _api_ZwCreateKey(self, status, arguments, flags):
         key = "%s/%s" % (arguments["RootDirectory"], arguments["ObjectName"])
-        return single("regkey_opened", key)
+        return single("registry_opened", key)
 
     def _api_ZwDeleteKey(self, status, arguments, flags):
-        return single("regkey_deleted", arguments["ValueName"])
+        return single("registry_deleted", arguments["ValueName"])
 
     _api_ZwDeleteValueKey = _api_ZwDeleteKey
 
     def _api_ZwQueryValueKey(self, status, arguments, flags):
-        return single("regkey_read", arguments["ValueName"])
+        return single("registry_read", arguments["ValueName"])
 
     def _api_ZwSetValueKey(self, status, arguments, flags):
-        return single("regkey_written", arguments["Data"])
+        return single("registry_written", arguments["Data"])
 
     def _api_ZwClose(self, status, arguments, flags):
         self.files.pop(arguments["Handle"], None)

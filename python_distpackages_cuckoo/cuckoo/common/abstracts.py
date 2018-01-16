@@ -848,8 +848,8 @@ class Signature(object):
         """
         if actions is None:
             actions = [
-                "regkey_opened", "regkey_written",
-                "regkey_read", "regkey_deleted",
+                "registry_opened", "registry_written",
+                "registry_read", "registry_deleted",
             ]
 
         return self.get_summary_generic(pid, actions)
@@ -917,8 +917,8 @@ class Signature(object):
         """
         if actions is None:
             actions = [
-                "regkey_written", "regkey_opened",
-                "regkey_read", "regkey_deleted",
+                "registry_written", "registry_opened",
+                "registry_read", "registry_deleted",
             ]
 
         return self._check_value(pattern=pattern,
