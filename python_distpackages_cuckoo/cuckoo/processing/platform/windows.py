@@ -360,10 +360,11 @@ class BehaviorReconstructor(object):
     def process_apicall(self, event):
         fn = getattr(self, "_api_%s" % event["api"], None)
         if fn is not None:
-            ret = fn(
-                event["status"], event["arguments"], event.get("flags")
-            )
-            return ret or []
+            try:
+                ret = fn(event["status"], event["arguments"], event.get("flags"))
+                return ret or []
+            except KeyError as e:
+                log.warning("Missing argument %s on %s" % (str(e), event["api"]))
         return []
 
     # Generic file & directory stuff.
@@ -412,7 +413,6 @@ class BehaviorReconstructor(object):
 
         if status:
             status_info = int(arguments.get("Information", ""), 0)
-            print arguments
 
             if status_info == options["file_overwritten"] or status_info == options["file_superseded"]:
                 return single("file_recreated", arguments["FilePath"])
