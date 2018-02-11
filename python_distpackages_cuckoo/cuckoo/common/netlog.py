@@ -321,6 +321,7 @@ class BsonParser(ProtocolHandler):
                     parsed["type"] = "apicall"
                     parsed["pid"] = self.pid
                     parsed["api"] = apiname
+                    parsed["index"] = index
                     parsed["category"] = category
                     parsed["status"] = argdict.pop("is_success", 1)
                     parsed["return_value"] = argdict.pop("retval", 0)
