@@ -744,6 +744,21 @@ class Config(object):
                 "index_time_pattern": String("yearly"),
                 "cuckoo_node": String(),
             },
+            "s3": {
+                "enabled": Boolean(True),
+                "bucket": String()
+            },
+            "sns": {
+                "enabled": Boolean(True),
+                "sqs_uri": String(),
+                "sns_arn": String()
+            },
+            "reformat": {
+                "enabled": Boolean(True)
+            },
+            "cleanup": {
+                "enabled": Boolean(True)
+            },
             "moloch": {
                 "enabled": Boolean(False),
                 "host": String(),
