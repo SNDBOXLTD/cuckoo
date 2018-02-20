@@ -64,9 +64,9 @@ class S3(Report):
         :return: s3 path the file was saved in
         """
         if os.path.isfile(pcap_path):
-            s3_path = "/pcaps/" + name + ".pcap"
-            s3.upload_file(pcap_path, self.options.bucket, s3_path)
-            return s3_path
+            save_in = s3_path + "/pcaps/" + name + ".pcap"
+            s3.upload_file(pcap_path, self.options.bucket, save_in)
+            return save_in
         else:
             log.critical("PCAP File %s is missing" % pcap_path)
 
