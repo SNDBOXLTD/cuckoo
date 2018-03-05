@@ -15,6 +15,7 @@ from cuckoo.common.utils import guid_name, jsbeautify, htmlprettify
 
 log = logging.getLogger(__name__)
 
+
 class MonitorProcessLog(list):
     """Yields each API call event to the parent handler. Optionally it may
     beautify certain API calls."""
@@ -223,6 +224,7 @@ class MonitorProcessLog(list):
         """
         return self.has_apicalls
 
+
 class WindowsMonitor(BehaviorHandler):
     """Parses monitor generated logs."""
     key = "processes"
@@ -274,7 +276,7 @@ class WindowsMonitor(BehaviorHandler):
                     # time again even though we already do this in
                     # MonitorProcessLog.
                     ts = process["first_seen"] + \
-                        datetime.timedelta(0, 0, event["time"] * 1000)
+                         datetime.timedelta(0, 0, event["time"] * 1000)
 
                     yield {
                         "type": "reboot",
@@ -299,7 +301,7 @@ class WindowsMonitor(BehaviorHandler):
 
 
 def NT_SUCCESS(value):
-    return value % 2**32 < 0x80000000
+    return value % 2 ** 32 < 0x80000000
 
 
 def single(key, value):
@@ -316,6 +318,18 @@ def multiple(*l):
     return l
 
 
+def is_handle_valid(handle):
+    """
+    Filter out unimportant handles
+    :param handle: the handle
+    :return: boolean
+    """
+    invalid_handles = ["0x00000000",
+                       "0xFFFFFFFF",
+                       "0xFFFFFFFE"]
+    return str(handle) not in invalid_handles
+
+
 def get_handle_in_call(call):
     """Extract handles from a given API call
 
@@ -326,7 +340,7 @@ def get_handle_in_call(call):
     for argument in call["arguments"]:
         if "Handle" in argument:
             handles.append(call["arguments"][argument])
-    return handles
+    return filter(is_handle_valid, handles)
 
 
 def get_handles_in_process(process):
@@ -354,6 +368,7 @@ def get_handles_in_process(process):
 
 class BehaviorReconstructor(object):
     """Reconstructs the behavior of behavioral API logs."""
+
     def __init__(self):
         self.files = {}
 

@@ -61,10 +61,8 @@ class SNS(Report):
         """
         client = boto3.client("sns")
         message = {
-            "db_id": sample["id"],
             "sample": sample,
-            "s3_bucket": s3["s3_bucket"],
-            "s3_key": s3["s3_key"]
+            "payload": s3
         }
 
         client.publish(
