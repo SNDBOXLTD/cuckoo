@@ -352,7 +352,7 @@ def get_handles_in_process(process):
     handles_in_use = {}
     list_of_handle_uses = []
 
-    calls = process.get("calls", [])
+    calls = list(process.get("calls", []))
 
     for call in calls:
         handles = get_handle_in_call(call)
