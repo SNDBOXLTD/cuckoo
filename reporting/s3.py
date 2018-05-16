@@ -31,7 +31,7 @@ class S3(Report):
         """
         report_path = os.path.join(self.reports_path, "report.json")
         if os.path.isfile(report_path):
-            gzipped_report_path = os.path.join("/tmp/", name + ".gz")
+            gzipped_report_path = os.path.join(self.reports_path, name + ".gz")
             with open(report_path, "r") as report:
                 with gzip.open(gzipped_report_path, "wb") as gz:
                     gz.write(report.read())
