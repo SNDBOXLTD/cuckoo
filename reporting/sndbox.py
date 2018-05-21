@@ -1,5 +1,5 @@
 """
-Module Name:    sns.py
+Module Name:    sandbox.py
 Purpose:        Removes the sample from the SQS queue and reports back to SNS
 Author:         Itay Huri
 Date:           12/09/2017
@@ -81,7 +81,7 @@ class Sndbox(Report):
             Message=json.dumps(message)
         )
 
-    def send_failure_notification(self, sample, logs, message=""):
+    def send_failure_notification(self, sample, logs, message=None):
         """
         Sends an analysis failure notification to indicate that something
         is wrong with an analysis
@@ -111,24 +111,13 @@ class Sndbox(Report):
         :param debug: the debug object
         :return: the error, if found
         """
-        logs = debug.log
-        error_pattern = re.compile(r"^error: \(\d+, 'CreateProcess', '(.*)'")
+        logs = debug['log']
+        error_pattern = re.compile(r"error: \(\d+, 'CreateProcessW', '(.*)'")
 
         for log in logs:
-            match = error_pattern.match(log)
+            match = error_pattern.search(log)
             if match:
-                return match
-
-
-    @staticmethod
-    def has_cuckoo_errors(debug):
-        """
-        Checks if there were any cuckoo host/vm specific errors
-
-        :param debug: the debug object
-        :return: whether or not errors were found
-        """
-        return not debug.errors
+                return match.group(1)  # returns the first group
 
     def run(self, results):
         """
@@ -147,24 +136,28 @@ class Sndbox(Report):
             logger.critical("S3 upload was not successful, aborting")
             return
 
-        debug = results.debug
+        debug = results['debug']
         sample = json.loads(results['info']['custom'])
 
-        process_error = self.has_process_errors(debug)
-        cuckoo_error = self.has_cuckoo_error(debug)
+        process_error = self.has_process_error(debug)
+        has_no_behavior = not results.get("behavior", False)
 
         if process_error:
+            logger.warning("First process related error was found")
+
             self.remove_from_queue(sample['receipt_handle'])
 
             self.send_failure_notification(
                 sample,
-                results.debug,
+                debug,
                 process_error  # pass the error to the user
             )
 
-        elif cuckoo_error or not results.behavior:
+        elif debug['errors'] or has_no_behavior:
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
+            logger.warning("No behavior was found")
+
             self.send_failure_notification(
                 sample,
                 debug
