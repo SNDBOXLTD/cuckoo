@@ -748,10 +748,11 @@ class Config(object):
                 "enabled": Boolean(True),
                 "bucket": String()
             },
-            "sns": {
+            "sndbox": {
                 "enabled": Boolean(True),
                 "sqs_uri": String(),
-                "sns_arn": String()
+                "completed_sns_arn": String(),
+                "failed_sns_arn": String()
             },
             "reformat": {
                 "enabled": Boolean(True)
