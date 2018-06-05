@@ -31,7 +31,7 @@ class S3(Report):
         """
         report_path = os.path.join(self.reports_path, "report.json")
         if os.path.isfile(report_path):
-            gzipped_report_path = os.path.join("/tmp/", name + ".gz")
+            gzipped_report_path = os.path.join(self.reports_path, name + ".gz")
             with open(report_path, "r") as report:
                 with gzip.open(gzipped_report_path, "wb") as gz:
                     gz.write(report.read())
@@ -77,20 +77,17 @@ class S3(Report):
         along with its original filename
         :param results: the full report
         """
-        if not results.get('behavior', False):
-            log.critical("No behavior was found, analysis failed")
-        else:
-            custom = json.loads(results["info"]["custom"])
+        custom = json.loads(results["info"]["custom"])
 
-            pcap_path = os.path.join(self.analysis_path, "dump.pcap")
-            gzipped_report_path = self.gzip_report(custom["s3_key"])
+        pcap_path = os.path.join(self.analysis_path, "dump.pcap")
+        gzipped_report_path = self.gzip_report(custom["s3_key"])
 
-            self.upload_pcap(pcap_path, custom["s3_path"], custom["s3_key"])
+        self.upload_pcap(pcap_path, custom["s3_path"], custom["s3_key"])
 
-            if gzipped_report_path:
-                s3_report_path = self.upload_report(gzipped_report_path, custom["s3_key"])
-                results["s3"] = {
-                    "s3_bucket": self.options.bucket,
-                    "s3_key": s3_report_path
-                }
+        if gzipped_report_path:
+            s3_report_path = self.upload_report(gzipped_report_path, custom["s3_key"])
+            results["s3"] = {
+                "s3_bucket": self.options.bucket,
+                "s3_key": s3_report_path
+            }
 
