@@ -630,6 +630,9 @@ class Config(object):
                 "force": Boolean(False),
                 "url": String(),
             },
+            "pcap_filter": {
+                "enabled": Boolean(False),
+            },
         },
         "qemu": {
             "qemu": {
