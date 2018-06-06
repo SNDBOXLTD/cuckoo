@@ -55,6 +55,12 @@ class PcapFilter(Processing):
     """
     key = "pcap_filter"
 
+    # filter_ips = set()
+    # def foo(self, pcap_path):
+    #     self.pcap_path = pcap_path
+    #     self.run()
+    #     print list(self.filter_ips)
+
     def run(self):
         if not os.path.exists(self.pcap_path):
             log.warning("The PCAP file does not exist at path \"%s\".",
@@ -105,13 +111,17 @@ class PcapFilter(Processing):
             if p.haslayer(IP):
                 if p[IP].dst in HOST_IGNORE_LIST or p[IP].src in HOST_IGNORE_LIST:
                     return True
+                # else:
+                #     self.filter_ips.add(p[IP].dst)
 
             if p.haslayer(Raw) and len(p[Raw].load) > 0:
                 if p[Raw].load == SSDP_PAYLOAD or p[Raw].load == SSDP_PAYLOAD_TYPE2:
                     return True
 
         except Exception as e:
+            print e
             log.error("Failed to parse packet: %s, with error %s", repr(p), e)
 
         return False
 
+# PcapFilter().foo('sample.pcap')
