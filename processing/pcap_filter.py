@@ -15,17 +15,19 @@ HOST_IGNORE_LIST =  [
 DNS_IGNORE_LIST = [
     'jack-pc',
     'isatap',
+    'wpad',
     'time.windows.com',
     'teredo.ipv6.microsoft.com',
     'dns.msftncsi.com' ,
     '6to4.ipv6.microsoft.com',
-    'wpad',
-    'javadl-esd-secure.oracle.com',
-    'rps-svcs.sun.com',
-    's2.symcb.com',
+    'oracle.com',
+    'sun.com',
     'status.geotrust.com',
     'gvt1.com',
-    'googleapis.com'
+    'googleapis.com',
+    'adobe.com',
+    'symcb.com', # DigiCert, Inc.
+    'symcd.com' # DigiCert, Inc.
 ]
 
 NETBIOS_IGNORE_LIST = ['jack-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad']
