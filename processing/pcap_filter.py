@@ -18,7 +18,7 @@ DNS_IGNORE_LIST = [
     'wpad',
     'time.windows.com',
     'teredo.ipv6.microsoft.com',
-    'dns.msftncsi.com' ,
+    'dns.msftncsi.com',
     '6to4.ipv6.microsoft.com',
     'oracle.com',
     'sun.com',
@@ -78,23 +78,27 @@ class PcapFilter(Processing):
         """
         try:
             if p.haslayer(DNS) or p.haslayer(LLMNRQuery):
-                name = ''
+                req_name = res_name = res_host = None
                 if p.qdcount > 0 and isinstance(p.qd, DNSQR):
-                    name = p.qd.qname[:-1] # remove dot
+                    req_name = p.qd.qname[:-1] # remove dot
 
-                # save response host/domain
+                # extract response
                 if p.ancount > 0 and isinstance(p.an, DNSRR):
                     for i in range(p.ancount):
                         an = p.an[i]
                         rdata = an.rdata
                         if rdata[-1] == ".":
-                            name = rdata[:-1]
-                            DNS_IGNORE_LIST.append(name)
+                            res_name = rdata[:-1]
                         else:
-                            HOST_IGNORE_LIST.append(rdata)
+                            res_host = rdata
 
-                return name.lower() in DNS_IGNORE_LIST or \
-                    _domain(name.lower()) in DNS_IGNORE_LIST
+                if req_name.lower() in DNS_IGNORE_LIST or \
+                    _domain(req_name.lower()) in DNS_IGNORE_LIST:
+                    if res_name:
+                        DNS_IGNORE_LIST.append(res_name)
+                    if res_host:
+                        HOST_IGNORE_LIST.append(res_host)
+                    return True
 
             if p.haslayer(NBNSQueryRequest) or p.haslayer(NBNSRequest):
                 name = _strip_name(p.QUESTION_NAME)
