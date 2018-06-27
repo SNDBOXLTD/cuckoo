@@ -7,8 +7,8 @@ log = logging.getLogger(__name__)
 
 from cuckoo.common.abstracts import Processing
 
-HOST_IGNORE_LIST =  [
-    '52.179.17.38', # microsoft ntp server
+HOST_IGNORE_LIST = [
+    '52.179.17.38',  # microsoft ntp server
     '192.88.99.1'
 ]
 
@@ -26,31 +26,35 @@ DNS_IGNORE_LIST = [
     'gvt1.com',
     'googleapis.com',
     'adobe.com',
-    'symcb.com', # DigiCert, Inc.
-    'symcd.com' # DigiCert, Inc.
+    'digicert.com',
+    'symcb.com',  # DigiCert, Inc.
+    'symcd.com'  # DigiCert, Inc.
 ]
 
 NETBIOS_IGNORE_LIST = ['jack-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad']
 
 SSDP_PAYLOAD = "M-SEARCH * HTTP/1.1\r\n" \
-"HOST:239.255.255.250:1900\r\n" \
-"ST:upnp:rootdevice\r\n" \
-"MAN: \"ssdp:discover\"\r\n" \
-"MX:2\r\n\r\n"
+    "HOST:239.255.255.250:1900\r\n" \
+    "ST:upnp:rootdevice\r\n" \
+    "MAN: \"ssdp:discover\"\r\n" \
+    "MX:2\r\n\r\n"
 
 SSDP_PAYLOAD_TYPE2 = "M-SEARCH * HTTP/1.1\r\n" \
-"Host:239.255.255.250:1900\r\n" \
-"ST:urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n" \
-"Man:\"ssdp:discover\"\r\n" \
-"MX:3\r\n\r\n"
+    "Host:239.255.255.250:1900\r\n" \
+    "ST:urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n" \
+    "Man:\"ssdp:discover\"\r\n" \
+    "MX:3\r\n\r\n"
+
 
 def _strip_name(name):
     """strip non characters and return as lowercase
     """
     return " ".join(re.findall("[a-zA-Z-]+", name)).strip().lower()
 
+
 def _domain(host):
     return ".".join(host.split(".")[1:])
+
 
 class PcapFilter(Processing):
     """Filter pcap file against blacklisted vm communication.
@@ -63,12 +67,14 @@ class PcapFilter(Processing):
                         self.pcap_path)
 
         if not os.path.getsize(self.pcap_path):
-            log.error("The PCAP file at path \"%s\" is empty." % self.pcap_path)
+            log.error("The PCAP file at path \"%s\" is empty." %
+                      self.pcap_path)
 
         try:
             pkts = rdpcap(self.pcap_path)
             filtered = [pkt for pkt in pkts if not self._should_filter(pkt)]
-            wrpcap(self.pcap_path, filtered) # write the filtered packets to file
+            # write the filtered packets to file
+            wrpcap(self.pcap_path, filtered)
         except Exception as e:
             print "error %s" % e
             log.info('failed to filter pcap file. Error: %s', e)
@@ -80,7 +86,7 @@ class PcapFilter(Processing):
             if p.haslayer(DNS) or p.haslayer(LLMNRQuery):
                 req_name = res_name = res_host = None
                 if p.qdcount > 0 and isinstance(p.qd, DNSQR):
-                    req_name = p.qd.qname[:-1] # remove dot
+                    req_name = p.qd.qname[:-1]  # remove dot
 
                 # extract response
                 if p.ancount > 0 and isinstance(p.an, DNSRR):
@@ -92,8 +98,8 @@ class PcapFilter(Processing):
                         else:
                             res_host = rdata
 
-                if req_name.lower() in DNS_IGNORE_LIST or \
-                    _domain(req_name.lower()) in DNS_IGNORE_LIST:
+                if req_name and req_name.lower() in DNS_IGNORE_LIST or \
+                        _domain(req_name.lower()) in DNS_IGNORE_LIST:
                     if res_name:
                         DNS_IGNORE_LIST.append(res_name)
                     if res_host:
@@ -120,4 +126,3 @@ class PcapFilter(Processing):
             log.error("Failed to parse packet: %s, with error %s", repr(p), e)
 
         return False
-
