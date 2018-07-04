@@ -15,6 +15,7 @@ from cuckoo.common.utils import guid_name, jsbeautify, htmlprettify
 
 log = logging.getLogger(__name__)
 
+DRIVER_NULL = "(null)"
 
 class MonitorProcessLog(list):
     """Yields each API call event to the parent handler. Optionally it may
@@ -305,8 +306,19 @@ def NT_SUCCESS(value):
 
 
 def single(key, value):
-    if value != "(null)":
-        return [(key, normalize_path(value))]
+    return [(key, find_and_normalize(value))]
+
+
+def find_and_normalize(value):
+    """
+    Normalizes both strings and tuples and contain strings
+    :param value: value that might contain path that needs normalizing, for example:
+        ??C:\\Users\Jack\data??.txt
+    :return: normalized string or tuple
+    """
+    if isinstance(value, tuple):
+        return tuple(map(normalize_path, value))
+    return normalize_path(value)
 
 
 def normalize_path(path):
@@ -464,23 +476,35 @@ class BehaviorReconstructor(object):
     # Registry stuff.
 
     def _api_ZwOpenKey(self, status, arguments, flags):
-        self.registry[arguments["KeyHandle"]] = arguments["ObjectName"]
-        return single("registry_opened", arguments["ObjectName"])
+        # append the RootDirectory if it is not "null", can be null in some cases.
+        root_directory = arguments["RootDirectory"] + "\\" if arguments["RootDirectory"] != DRIVER_NULL else ""
+        key = "{}{}".format(root_directory, arguments["ObjectName"])
+
+        self.registry[arguments["KeyHandle"]] = key
+
+        return single("registry_opened", key)
 
     _api_ZwOpenKeyEx = _api_ZwOpenKey
 
-    def _api_ZwCreateKey(self, status, arguments, flags):
-        self.registry[arguments["KeyHandle"]] = arguments["ObjectName"]
-        key = "%s/%s" % (arguments["RootDirectory"], arguments["ObjectName"])
-        return single("registry_opened", key)
+    _api_ZwCreateKey = _api_ZwOpenKey
 
     def _api_ZwDeleteKey(self, status, arguments, flags):
+        handle = arguments["KeyHandle"]
+        if handle in self.registry:
+            return single("registry_deleted", "{}\{}".format(self.registry[handle], arguments['ValueName']))
 
     _api_ZwDeleteValueKey = _api_ZwDeleteKey
 
     def _api_ZwQueryValueKey(self, status, arguments, flags):
+        handle = arguments["KeyHandle"]
+        if handle in self.registry:
+            return single("registry_read", "{}\{}".format(self.registry[handle], arguments['ValueName']))
 
     def _api_ZwSetValueKey(self, status, arguments, flags):
+        handle = arguments["KeyHandle"]
+        if handle in self.registry:
+            registry_path = "{}\{}".format(self.registry[handle], arguments['ValueName'])
+            return single("registry_written", registry_path)
 
     def _api_ZwClose(self, status, arguments, flags):
         self.files.pop(arguments["Handle"], None)
