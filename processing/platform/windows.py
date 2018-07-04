@@ -371,6 +371,7 @@ class BehaviorReconstructor(object):
 
     def __init__(self):
         self.files = {}
+        self.registry = {}
 
     def process_apicall(self, event):
         fn = getattr(self, "_api_%s" % event["api"], None)
@@ -463,27 +464,27 @@ class BehaviorReconstructor(object):
     # Registry stuff.
 
     def _api_ZwOpenKey(self, status, arguments, flags):
+        self.registry[arguments["KeyHandle"]] = arguments["ObjectName"]
         return single("registry_opened", arguments["ObjectName"])
 
     _api_ZwOpenKeyEx = _api_ZwOpenKey
 
     def _api_ZwCreateKey(self, status, arguments, flags):
+        self.registry[arguments["KeyHandle"]] = arguments["ObjectName"]
         key = "%s/%s" % (arguments["RootDirectory"], arguments["ObjectName"])
         return single("registry_opened", key)
 
     def _api_ZwDeleteKey(self, status, arguments, flags):
-        return single("registry_deleted", arguments["ValueName"])
 
     _api_ZwDeleteValueKey = _api_ZwDeleteKey
 
     def _api_ZwQueryValueKey(self, status, arguments, flags):
-        return single("registry_read", arguments["ValueName"])
 
     def _api_ZwSetValueKey(self, status, arguments, flags):
-        return single("registry_written", arguments["Data"])
 
     def _api_ZwClose(self, status, arguments, flags):
         self.files.pop(arguments["Handle"], None)
+        self.registry.pop(arguments["Handle"], None)
 
     # Mutex stuff
 
