@@ -306,7 +306,8 @@ def NT_SUCCESS(value):
 
 
 def single(key, value):
-    return [(key, find_and_normalize(value))]
+    if not is_driver_null(value): # no point in appending if value is null
+        return [(key, find_and_normalize(value))]
 
 
 def find_and_normalize(value):
@@ -318,13 +319,35 @@ def find_and_normalize(value):
     """
     if isinstance(value, dict):
         # if value is a dictionary, try to normalize the values
-        return {k: normalize_path(v) for k, v in value.items()}
+        return {k: normalize_dict_value(v) for k, v in value.items()}
     return normalize_path(value)
+
+
+def normalize_dict_value(data):
+    """
+    Normalizes dict values, which mostly represent registry information as it cannot
+    fit in a string.
+    Replaces driver nulls with actual nulls and normalizes paths
+    :param data: dict value, could be a registry key for instance
+    :return: normalized value
+    """
+    if is_driver_null(data):
+        return None
+    return normalize_path(data)
 
 
 def normalize_path(path):
     normal_path = path.replace("\\??\\", "")
     return re.sub(r':\\Users\\+(Jack)', ':\Users\<USER>', normal_path)
+
+
+def is_driver_null(data):
+    """
+    Checks if provided data means null
+    :param data: output string from driver
+    :return: boolean
+    """
+    return data == DRIVER_NULL
 
 
 def multiple(*l):
