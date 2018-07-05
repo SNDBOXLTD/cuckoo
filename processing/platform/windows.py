@@ -532,7 +532,9 @@ class BehaviorReconstructor(object):
             return single("registry_read", {
                 "key":  self.registry[handle],
                 "value": arguments['ValueName'],
-                "data": arguments["Data"]
+                # Cuckoo's MonitorProcessLog beautifies the API call after this point
+                # we have to handle it again
+                "data": handle_hex_stream(arguments["Data"])
             })
 
     def _api_ZwSetValueKey(self, status, arguments, flags):
