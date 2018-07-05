@@ -349,3 +349,31 @@ def list_of_ints(l):
 
 def list_of_strings(l):
     return list_of(l, basestring)
+
+
+def extract_stream(data):
+    """
+    Extract stream, (what comes after 'HexStream = ') if present, from a given data.
+    We strip down \x00 due to a bug in Ariel's driver.
+    Encode as utf-8 to avoid problems with encoding to bse64 later on ('ascii' codec can't encode character..)
+    :param data: data that might contain an hex stream, for example ZwQueryValueKey.arguments.Data. Looks like this:
+        HexStream = \\x30\\x00\\x30\\x00\\x30\\x00\\x36\\x00\\"
+    :return: stripped stream, or false if no hex stream was found
+    """
+    regex = re.match('^HexStream = (.*)', data)
+    return regex.group(1).decode('unicode-escape').strip('\x00').encode('utf-8') if regex else False
+
+
+def handle_hex_stream(data):
+    """
+    Takes a possibly hex stream, and decodes it, if the decoded result is printable, return it,
+    Otherwise, it is likely to be a binary - therefore we base64 encode it
+    :param data: data that might contain an hex stream, for example ZwQueryValueKey.arguments.Data. Looks like this:
+        HexStream = \\x30\\x00\\x30\\x00\\x30\\x00\\x36\\x00\\"
+    :return: decoded hex stream, could be base64 encoded if binary
+    """
+    stream = extract_stream(data)
+    if stream is not False:  # stream can actually be null (HexStream = \\x00\\x00). so we explicitly check for False
+        is_binary = not all(c in string.printable for c in stream)
+        return stream.encode("base64") if is_binary else stream
+    return data
