@@ -361,7 +361,7 @@ def extract_stream(data):
     :return: stripped stream, or false if no hex stream was found
     """
     regex = re.match('^HexStream = (.*)', data)
-    return regex.group(1).decode('unicode-escape').strip('\x00').encode('utf-8') if regex else False
+    return regex.group(1).decode('unicode-escape').encode('utf-8').replace('\x00', '') if regex else False
 
 
 def handle_hex_stream(data):
