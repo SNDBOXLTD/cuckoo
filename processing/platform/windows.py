@@ -311,13 +311,14 @@ def single(key, value):
 
 def find_and_normalize(value):
     """
-    Normalizes both strings and tuples and contain strings
+    Normalizes both strings and dicts that contain strings
     :param value: value that might contain path that needs normalizing, for example:
         ??C:\\Users\Jack\data??.txt
     :return: normalized string or tuple
     """
-    if isinstance(value, tuple):
-        return tuple(map(normalize_path, value))
+    if isinstance(value, dict):
+        # if value is a dictionary, try to normalize the values
+        return {k: normalize_path(v) for k, v in value.items()}
     return normalize_path(value)
 
 
@@ -491,20 +492,30 @@ class BehaviorReconstructor(object):
     def _api_ZwDeleteKey(self, status, arguments, flags):
         handle = arguments["KeyHandle"]
         if handle in self.registry:
-            return single("registry_deleted", "{}\{}".format(self.registry[handle], arguments['ValueName']))
+            return single("registry_deleted", {
+                "key": self.registry[handle],
+                "value": arguments['ValueName']
+            })
 
     _api_ZwDeleteValueKey = _api_ZwDeleteKey
 
     def _api_ZwQueryValueKey(self, status, arguments, flags):
         handle = arguments["KeyHandle"]
         if handle in self.registry:
-            return single("registry_read", "{}\{}".format(self.registry[handle], arguments['ValueName']))
+            return single("registry_read", {
+                "key":  self.registry[handle],
+                "value": arguments['ValueName'],
+                "data": arguments["Data"]
+            })
 
     def _api_ZwSetValueKey(self, status, arguments, flags):
         handle = arguments["KeyHandle"]
         if handle in self.registry:
-            registry_path = "{}\{}".format(self.registry[handle], arguments['ValueName'])
-            return single("registry_written", registry_path)
+            return single("registry_written", {
+                "key":  self.registry[handle],
+                "value": arguments['ValueName'],
+                "data": arguments["Data"]
+            })
 
     def _api_ZwClose(self, status, arguments, flags):
         self.files.pop(arguments["Handle"], None)
