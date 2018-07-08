@@ -27,10 +27,10 @@ class Summary(BehaviorHandler):
 
     def __init__(self, *args, **kwargs):
         super(Summary, self).__init__(*args, **kwargs)
-        self.results = collections.defaultdict(set)
+        self.results = collections.defaultdict(list)
 
     def handle_event(self, event):
-        self.results[event["category"]].add(event["value"])
+        self.results[event["category"]].append(event["value"])
 
     def run(self):
         for key, value in self.results.items():
@@ -140,14 +140,14 @@ class GenericBehavior(BehaviorHandler):
             "process_name": process["process_name"],
             "process_path": process.get("process_path"),
             "first_seen": process["first_seen"],
-            "summary": collections.defaultdict(set),
+            "summary": collections.defaultdict(list),
         }
 
     def handle_generic_event(self, event):
         if event["pid"] in self.processes:
             # TODO: rewrite / generalize / more flexible
             pid, category = event["pid"], event["category"]
-            self.processes[pid]["summary"][category].add(event["value"])
+            self.processes[pid]["summary"][category].append(event["value"])
         else:
             log.warning("Generic event for unknown process id %u", event["pid"])
 
