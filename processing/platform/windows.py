@@ -11,10 +11,11 @@ import shlex
 
 from cuckoo.common.abstracts import BehaviorHandler
 from cuckoo.common.netlog import BsonParser
-from cuckoo.common.utils import guid_name, jsbeautify, htmlprettify
+from cuckoo.common.utils import guid_name, jsbeautify, htmlprettify, handle_hex_stream
 
 log = logging.getLogger(__name__)
 
+DRIVER_NULL = "(null)"
 
 class MonitorProcessLog(list):
     """Yields each API call event to the parent handler. Optionally it may
@@ -178,6 +179,10 @@ class MonitorProcessLog(list):
         elif guid_name(iid):
             event["flags"]["iid"] = guid_name(iid)
 
+    def _api_ZwQueryValueKey(self, event):
+        if 'Data' in event['arguments']:
+            event['arguments']['Data'] = handle_hex_stream(event['arguments']['Data'])
+
     def __iter__(self):
         self.init()
         for event in self.eventstream:
@@ -305,13 +310,48 @@ def NT_SUCCESS(value):
 
 
 def single(key, value):
-    if value != "(null)":
-        return [(key, normalize_path(value))]
+    if not is_driver_null(value): # no point in appending if value is null
+        return [(key, find_and_normalize(value))]
+
+
+def find_and_normalize(value):
+    """
+    Normalizes both strings and dicts that contain strings
+    :param value: value that might contain path that needs normalizing, for example:
+        ??C:\\Users\Jack\data??.txt
+    :return: normalized string or tuple
+    """
+    if isinstance(value, dict):
+        # if value is a dictionary, try to normalize the values
+        return {k: normalize_dict_value(v) for k, v in value.items()}
+    return normalize_path(value)
+
+
+def normalize_dict_value(data):
+    """
+    Normalizes dict values, which mostly represent registry information as it cannot
+    fit in a string.
+    Replaces driver nulls with actual nulls and normalizes paths
+    :param data: dict value, could be a registry key for instance
+    :return: normalized value
+    """
+    if is_driver_null(data):
+        return None
+    return normalize_path(data)
 
 
 def normalize_path(path):
     normal_path = path.replace("\\??\\", "")
     return re.sub(r':\\Users\\+(Jack)', ':\Users\<USER>', normal_path)
+
+
+def is_driver_null(data):
+    """
+    Checks if provided data means null
+    :param data: output string from driver
+    :return: boolean
+    """
+    return data == DRIVER_NULL
 
 
 def multiple(*l):
@@ -371,6 +411,7 @@ class BehaviorReconstructor(object):
 
     def __init__(self):
         self.files = {}
+        self.registry = {}
 
     def process_apicall(self, event):
         fn = getattr(self, "_api_%s" % event["api"], None)
@@ -463,27 +504,51 @@ class BehaviorReconstructor(object):
     # Registry stuff.
 
     def _api_ZwOpenKey(self, status, arguments, flags):
-        return single("registry_opened", arguments["ObjectName"])
+        # append the RootDirectory if it is not "null", can be null in some cases.
+        root_directory = arguments["RootDirectory"] + "\\" if arguments["RootDirectory"] != DRIVER_NULL else ""
+        key = "{}{}".format(root_directory, arguments["ObjectName"])
+
+        self.registry[arguments["KeyHandle"]] = key
+
+        return single("registry_opened", key)
 
     _api_ZwOpenKeyEx = _api_ZwOpenKey
 
-    def _api_ZwCreateKey(self, status, arguments, flags):
-        key = "%s/%s" % (arguments["RootDirectory"], arguments["ObjectName"])
-        return single("registry_opened", key)
+    _api_ZwCreateKey = _api_ZwOpenKey
 
     def _api_ZwDeleteKey(self, status, arguments, flags):
-        return single("registry_deleted", arguments["ValueName"])
+        handle = arguments["KeyHandle"]
+        if handle in self.registry:
+            return single("registry_deleted", {
+                "key": self.registry[handle],
+                "value": arguments['ValueName']
+            })
 
     _api_ZwDeleteValueKey = _api_ZwDeleteKey
 
     def _api_ZwQueryValueKey(self, status, arguments, flags):
-        return single("registry_read", arguments["ValueName"])
+        handle = arguments["KeyHandle"]
+        if handle in self.registry:
+            return single("registry_read", {
+                "key":  self.registry[handle],
+                "value": arguments['ValueName'],
+                # Cuckoo's MonitorProcessLog beautifies the API call after this point
+                # we have to handle it again
+                "data": handle_hex_stream(arguments["Data"])
+            })
 
     def _api_ZwSetValueKey(self, status, arguments, flags):
-        return single("registry_written", arguments["Data"])
+        handle = arguments["KeyHandle"]
+        if handle in self.registry:
+            return single("registry_written", {
+                "key":  self.registry[handle],
+                "value": arguments['ValueName'],
+                "data": arguments["Data"]
+            })
 
     def _api_ZwClose(self, status, arguments, flags):
         self.files.pop(arguments["Handle"], None)
+        self.registry.pop(arguments["Handle"], None)
 
     # Mutex stuff
 
