@@ -749,11 +749,15 @@ class Config(object):
             },
             "s3": {
                 "enabled": Boolean(True),
-                "bucket": String()
+                "bucket": String(),
+                "endpoint": String()
             },
             "sndbox": {
                 "enabled": Boolean(True),
-                "sqs_uri": String(),
+                "sqs_endpoint": String(),
+                "sqs_use_ssl": Boolean(False),
+                "sqs_queue": String(),
+                "sns_endpoint": String(),
                 "completed_sns_arn": String(),
                 "failed_sns_arn": String()
             },

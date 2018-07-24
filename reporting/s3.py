@@ -13,8 +13,6 @@ import gzip
 import logging
 
 log = logging.getLogger(__name__)
-s3 = boto3.client("s3")
-
 
 class S3(Report):
     """
@@ -22,6 +20,13 @@ class S3(Report):
     """
 
     order = 2
+
+    def setup(self):
+        s3_config = boto3.session.Config(s3={'addressing_style': 'path'})
+        s3 = boto3.resource('s3',
+                            endpoint_url=self.options.get('endpoint', None),
+                            config=s3_config)
+        self._s3 = s3.Bucket(self.options.bucket)
 
     def gzip_report(self, name):
         """
@@ -50,7 +55,7 @@ class S3(Report):
         """
         if os.path.isfile(report_path):
             s3_report_path = os.path.join("dynamic_tmp/", name + ".json.gz")
-            s3.upload_file(report_path, self.options.bucket, s3_report_path)
+            self._s3.upload_file(report_path, s3_report_path)
             return s3_report_path
         else:
             log.critical("Report GZIP File %s is missing" % report_path)
@@ -66,7 +71,7 @@ class S3(Report):
         """
         if os.path.isfile(pcap_path):
             save_in = s3_path + "/pcaps/" + name + ".pcap"
-            s3.upload_file(pcap_path, self.options.bucket, save_in)
+            self._s3.upload_file(pcap_path, save_in)
             return save_in
         else:
             log.critical("PCAP File %s is missing" % pcap_path)
@@ -77,6 +82,7 @@ class S3(Report):
         along with its original filename
         :param results: the full report
         """
+        self.setup()
         custom = json.loads(results["info"]["custom"])
 
         pcap_path = os.path.join(self.analysis_path, "dump.pcap")
@@ -85,9 +91,9 @@ class S3(Report):
         self.upload_pcap(pcap_path, custom["s3_path"], custom["s3_key"])
 
         if gzipped_report_path:
-            s3_report_path = self.upload_report(gzipped_report_path, custom["s3_key"])
+            s3_report_path = self.upload_report(
+                gzipped_report_path, custom["s3_key"])
             results["s3"] = {
                 "s3_bucket": self.options.bucket,
                 "s3_key": s3_report_path
             }
-

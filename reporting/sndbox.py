@@ -41,10 +41,16 @@ class Sndbox(Report):
     """
     order = 3
 
-    @classmethod
-    def init_once(cls):
-        cls._sns = boto3.client("sns")
-        cls._sqs = boto3.client('sqs')
+    def setup(self):
+        sqs_client = boto3.resource('sqs',
+                            endpoint_url=self.options.get('sqs_endpoint', None),
+                            use_ssl=self.options.get('sqs_use_ssl', True)
+                            )
+
+        self._sqs = sqs_client.get_queue_by_name(QueueName=self.options.sqs_queue)
+        self._sns = boto3.client('sns',
+                            endpoint_url=self.options.get('sns_endpoint', None)
+                            )
 
     def remove_from_queue(self, receipt_handle):
         """
@@ -56,10 +62,13 @@ class Sndbox(Report):
         Returns:
             None
         """
-        self._sqs.delete_message(
-            QueueUrl=self.options.sqs_uri,
-            ReceiptHandle=receipt_handle
-        )
+        logger.info("Removing sample from queue")
+        message_delete_entry = {
+            'Id': '1',  # unique_request_id
+            'ReceiptHandle': receipt_handle
+        }
+
+        self._sqs.delete_messages(Entries=[message_delete_entry])
 
     def send_success_notification(self, s3, sample):
         """
@@ -131,7 +140,7 @@ class Sndbox(Report):
         :param results: cuckoo results
         :return:
         """
-
+        self.setup()
         if "s3" not in results:
             logger.critical("S3 upload was not successful, aborting")
             return
