@@ -41,16 +41,22 @@ class Sndbox(Report):
     """
     order = 3
 
-    def setup(self):
-        sqs_client = boto3.resource('sqs',
-                            endpoint_url=self.options.get('sqs_endpoint', None),
-                            use_ssl=self.options.get('sqs_use_ssl', True)
-                            )
+    @classmethod
+    def init_once(self):
+        self.init = False
 
-        self._sqs = sqs_client.get_queue_by_name(QueueName=self.options.sqs_queue)
-        self._sns = boto3.client('sns',
-                            endpoint_url=self.options.get('sns_endpoint', None)
-                            )
+    def setup(self):
+        if (not self.init):
+            sqs_client = boto3.resource('sqs',
+                                endpoint_url=self.options.get('sqs_endpoint', None),
+                                use_ssl=self.options.get('sqs_use_ssl', True)
+                                )
+
+            self._sqs = sqs_client.get_queue_by_name(QueueName=self.options.sqs_queue)
+            self._sns = boto3.client('sns',
+                                endpoint_url=self.options.get('sns_endpoint', None)
+                                )
+            self.init = True
 
     def remove_from_queue(self, receipt_handle):
         """
