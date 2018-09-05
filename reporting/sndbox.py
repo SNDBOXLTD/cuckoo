@@ -145,6 +145,7 @@ class Sndbox(Report):
         if process_error:
             logger.warning("First process related error was found")
 
+            # this will occur on all VMs, no point in retrying
             self.remove_from_queue(sample['receipt_handle'])
 
             self.send_failure_notification(
@@ -157,11 +158,6 @@ class Sndbox(Report):
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
             logger.warning("No behavior was found")
-
-            self.send_failure_notification(
-                sample,
-                debug
-            )
 
         else:
             self.send_success_notification(results["s3"], sample)
