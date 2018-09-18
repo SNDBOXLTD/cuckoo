@@ -46,21 +46,6 @@ class Sndbox(Report):
         cls._sns = boto3.client("sns")
         cls._sqs = boto3.client('sqs')
 
-    def remove_from_queue(self, receipt_handle):
-        """
-        Removes a message from the SQS queue given a receipt handle
-        Args:
-            receipt_handle: str
-                The receipt_handle of the sample
-
-        Returns:
-            None
-        """
-        self._sqs.delete_message(
-            QueueUrl=self.options.sqs_uri,
-            ReceiptHandle=receipt_handle
-        )
-
     def send_success_notification(self, s3, sample):
         """
         sends an SNS notification, along with the
@@ -137,7 +122,8 @@ class Sndbox(Report):
             return
 
         debug = results['debug']
-        sample = json.loads(results['info']['custom'])
+        custom = json.loads(results['info']['custom'])
+        sample = custom["sample"]
 
         process_error = self.has_process_error(debug)
         has_no_behavior = not results.get("behavior", False)
@@ -146,7 +132,7 @@ class Sndbox(Report):
             logger.warning("First process related error was found")
 
             # this will occur on all VMs, no point in retrying
-            self.remove_from_queue(sample['receipt_handle'])
+            self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
 
             self.send_failure_notification(
                 sample,
@@ -161,4 +147,4 @@ class Sndbox(Report):
 
         else:
             self.send_success_notification(results["s3"], sample)
-            self.remove_from_queue(sample['receipt_handle'])
+            self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])

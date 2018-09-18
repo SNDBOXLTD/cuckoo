@@ -753,7 +753,6 @@ class Config(object):
             },
             "sndbox": {
                 "enabled": Boolean(True),
-                "sqs_uri": String(),
                 "completed_sns_arn": String(),
                 "failed_sns_arn": String()
             },
