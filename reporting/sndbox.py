@@ -104,6 +104,23 @@ class Sndbox(Report):
             if match:
                 return match.group(1)  # returns the first group
 
+    @staticmethod
+    def has_crash_process(processes):
+        """
+        Check if a process that is related to a crash is found in a list of processes
+        :param processes: list of processes
+        :return: boolean indicating whether a crash process was found
+        """
+        process_paths = (
+            '\\Device\\HarddiskVolume2\\Windows\\Microsoft.NET\\Framework\\v2.0.50727\\dw20.exe',
+            '\\Device\\HarddiskVolume2\\Program Files\\Common Files\\microsoft shared\\DW\\DW20.EXE',
+            '\\Device\\HarddiskVolume2\\Windows\\x86_netfx-dw-b03f5f711d50a3a_6.1.7600.16385_none_a223bd3dd785391a\\dw20.exe',
+            '\\Device\\HarddiskVolume2\\Windows\\System32\\WerFault.exe',
+            '\\Device\\HarddiskVolume2\\Windows\\System32\\wermgr.exe'
+        )
+        found_processes = filter(lambda p: p["process_path"] in process_paths, processes)
+        return len(found_processes) > 0
+
     def run(self, results):
         """
         Notifies about a successful/unsuccessful analysis.
@@ -144,6 +161,11 @@ class Sndbox(Report):
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
             logger.warning("No behavior was found")
+
+        elif self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]:
+            # in case we have a crash process and this sample is scheduled to have more retries, we should
+            # run it again, this handles case where VMs sometimes perform poorly under heavy load
+            logger.warning("Detected crash process")
 
         else:
             self.send_success_notification(results["s3"], sample)
