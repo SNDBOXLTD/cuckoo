@@ -5,6 +5,7 @@
 
 import os
 import logging
+import socket
 
 from cuckoo.common.abstracts import Processing
 from cuckoo.common.config import emit_options
@@ -76,7 +77,7 @@ class AnalysisInfo(Processing):
             id=int(task["id"]),
             category=task["category"],
             custom=task["custom"],
-            owner=task["owner"],
+            owner=socket.gethostname(),
             machine=task["guest"],
             package=task["package"],
             platform=task["platform"],
