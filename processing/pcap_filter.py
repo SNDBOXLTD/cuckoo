@@ -13,7 +13,7 @@ HOST_IGNORE_LIST = [
 ]
 
 DNS_IGNORE_LIST = [
-    'jack-pc',
+    'petra-pc',
     'isatap',
     'wpad',
     'time.windows.com',
@@ -31,7 +31,7 @@ DNS_IGNORE_LIST = [
     'symcd.com'  # DigiCert, Inc.
 ]
 
-NETBIOS_IGNORE_LIST = ['jack-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad']
+NETBIOS_IGNORE_LIST = ['petra-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad']
 
 SSDP_PAYLOAD = "M-SEARCH * HTTP/1.1\r\n" \
     "HOST:239.255.255.250:1900\r\n" \
