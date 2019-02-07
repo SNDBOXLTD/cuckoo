@@ -7,7 +7,6 @@ import importlib
 import logging
 import multiprocessing
 import os.path
-import pkg_resources
 import subprocess
 import sys
 import types
@@ -31,7 +30,9 @@ _raw = None
 # This normalizes the installed version of Cuckoo to a regular minor version.
 # That is, both 2.0.4.2 and 2.0.4 return version 2.0.4, avoiding issues with
 # distutils later on.
-version = ".".join(pkg_resources.require("Cuckoo")[0].version.split(".")[:3])
+version = "2.0.4" 
+# disable to support newer scapy
+#version = ".".join(pkg_resources.require("Cuckoo")[0].version.split(".")[:3])
 
 def set_cwd(path, raw=None):
     global _root, _raw
