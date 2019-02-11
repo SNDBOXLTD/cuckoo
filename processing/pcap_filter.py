@@ -14,7 +14,6 @@ except ImportError:
         def __init__(self, pcap_path):
             self.pcap_path = pcap_path
 
-
 SSDP_PAYLOAD = "M-SEARCH * HTTP/1.1\r\n" \
     "HOST:239.255.255.250:1900\r\n" \
     "ST:upnp:rootdevice\r\n" \
