@@ -49,6 +49,7 @@ class PcapFilter(Processing):
         # For performance, and duplication handling we use set() data type
         self.host_ignore_list = set([
             '52.179.17.38',  # microsoft ntp server
+            '23.217.129.17',  # microsoft NCSI
             '192.88.99.1'
         ])
 
@@ -118,13 +119,13 @@ class PcapFilter(Processing):
                         else:
                             res_host = rdata
 
-                if req_name and req_name.lower() in self.dns_ignore_list or \
-                        _domain(req_name.lower()) in self.dns_ignore_list:
-                    if res_name:
-                        self.dns_ignore_list.add(res_name)
-                    if res_host:
-                        self.host_ignore_list.add(res_host)
-                    return True
+                        if req_name and (req_name.lower() in self.dns_ignore_list or
+                                         _domain(req_name.lower()) in self.dns_ignore_list):
+                            if res_name:
+                                self.dns_ignore_list.add(res_name)
+                            if res_host:
+                                self.host_ignore_list.add(res_host)
+                            return True
 
             if p.haslayer(NBNSQueryRequest) or p.haslayer(NBNSRequest):
                 name = _strip_name(p.QUESTION_NAME)
@@ -150,6 +151,6 @@ class PcapFilter(Processing):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    pcap_path = '/Users/tomerf/Downloads/e79e313dbd77727af748bae42926b065.pcap'
+    pcap_path = '/Users/tomerf/Downloads/b97495ca9a8e2bad93c3ee9f903248de.pcap'
     pf = PcapFilter(pcap_path)
     pf.run()
