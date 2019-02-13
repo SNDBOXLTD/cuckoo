@@ -49,7 +49,7 @@ class PcapFilter(Processing):
         # For performance, and duplication handling we use set() data type
         self.host_ignore_list = set([
             '52.179.17.38',  # microsoft ntp server
-            '23.217.129.17',  # microsoft NCSI
+            '23.217.129.17',  # microsoft ncsi server
             '192.88.99.1'
         ])
 
@@ -59,8 +59,7 @@ class PcapFilter(Processing):
             'wpad',
             'time.windows.com',
             'teredo.ipv6.microsoft.com',
-            'www.msftncsi.com',
-            'dns.msftncsi.com',
+            'msftncsi.com',
             '6to4.ipv6.microsoft.com',
             'windowsupdate.com',
             'oracle.com',
@@ -88,7 +87,7 @@ class PcapFilter(Processing):
         start_time = time.time()
         try:
             pkts = rdpcap(self.pcap_path)
-            filtered = [pkt for pkt in pkts if not self._should_filter(pkt)]
+            filtered = filter(lambda pkt: not self._should_filter(pkt), pkts)
             # write the filtered packets to file
             wrpcap(self.pcap_path, filtered)
             log.info("Filtered %d packets, ignored: (%d,%d), elapsed time:%s",
@@ -100,6 +99,23 @@ class PcapFilter(Processing):
             print "error %s" % e
             log.info('failed to filter pcap file. Error: %s', e)
 
+    def _ignore_req_name(self, req_name):
+        return req_name and (req_name.lower() in self.dns_ignore_list or
+                             _domain(req_name.lower()) in self.dns_ignore_list)
+
+    def _extract_res(self, p):
+        res_names = set()
+        res_hosts = set()
+        if p.ancount > 0 and isinstance(p.an, DNSRR):
+            for i in range(p.ancount):
+                an = p.an[i]
+                rdata = an.rdata
+                if rdata[-1] == ".":
+                    res_names.add(rdata[:-1])
+                else:
+                    res_hosts.add(rdata)
+        return res_names, res_hosts
+
     def _should_filter(self, p):
         """Filter vm network (dns, netbios, ssdp) traffic
         """
@@ -110,22 +126,14 @@ class PcapFilter(Processing):
                     req_name = p.qd.qname[:-1]  # remove dot
 
                 # extract response
-                if p.ancount > 0 and isinstance(p.an, DNSRR):
-                    for i in range(p.ancount):
-                        an = p.an[i]
-                        rdata = an.rdata
-                        if rdata[-1] == ".":
-                            res_name = rdata[:-1]
-                        else:
-                            res_host = rdata
+                res_names, res_hosts = self._extract_res(p)
 
-                        if req_name and (req_name.lower() in self.dns_ignore_list or
-                                         _domain(req_name.lower()) in self.dns_ignore_list):
-                            if res_name:
-                                self.dns_ignore_list.add(res_name)
-                            if res_host:
-                                self.host_ignore_list.add(res_host)
-                            return True
+                if self._ignore_req_name(req_name):
+                    if res_names:
+                        self.dns_ignore_list |= res_names
+                    if res_hosts:
+                        self.host_ignore_list |= res_hosts
+                    return True
 
             if p.haslayer(NBNSQueryRequest) or p.haslayer(NBNSRequest):
                 name = _strip_name(p.QUESTION_NAME)
@@ -151,6 +159,6 @@ class PcapFilter(Processing):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    pcap_path = '/Users/tomerf/Downloads/b97495ca9a8e2bad93c3ee9f903248de.pcap'
+    pcap_path = '/Users/tomerf/Downloads/e79e313dbd77727af748bae42926b065.pcap'
     pf = PcapFilter(pcap_path)
     pf.run()
