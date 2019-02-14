@@ -103,7 +103,7 @@ class PcapFilter(Processing):
         return req_name and (req_name.lower() in self.dns_ignore_list or
                              _domain(req_name.lower()) in self.dns_ignore_list)
 
-    def _extract_res(self, p):
+    def _extract_dns_response(self, p):
         res_names = set()
         res_hosts = set()
         if p.ancount > 0 and isinstance(p.an, DNSRR):
@@ -125,14 +125,12 @@ class PcapFilter(Processing):
                 if p.qdcount > 0 and isinstance(p.qd, DNSQR):
                     req_name = p.qd.qname[:-1]  # remove dot
 
-                # extract response
-                res_names, res_hosts = self._extract_res(p)
+                # extract dns response
+                res_names, res_hosts = self._extract_dns_response(p)
 
                 if self._ignore_req_name(req_name):
-                    if res_names:
-                        self.dns_ignore_list |= res_names
-                    if res_hosts:
-                        self.host_ignore_list |= res_hosts
+                    self.dns_ignore_list.update(res_names)
+                    self.host_ignore_list.update(res_hosts)
                     return True
 
             if p.haslayer(NBNSQueryRequest) or p.haslayer(NBNSRequest):
