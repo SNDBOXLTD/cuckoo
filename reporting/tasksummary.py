@@ -11,6 +11,10 @@ from cuckoo.common.abstracts import Report
 
 
 class TaskSummary(Report):
+    """
+    Exports JSON summary that's imported into Filebeats & ES. Enabling to track
+    analyses performance metrics
+    """
     order = 5
 
     def run(self, results):
@@ -30,5 +34,5 @@ class TaskSummary(Report):
 
         task_summary_path = os.path.join(self.reports_path, "task_summary.json")
         with open(task_summary_path, "wb") as report: \
-                # newline important for Filebeat to work
+                # newline is important for Filebeat to work
                 report.write(json.dumps(task) + "\r\n")
