@@ -113,27 +113,27 @@ class PcapFilter(Processing):
         return req_name and (req_name.lower() in self.dns_ignore_list or
                              _domain(req_name.lower()) in self.dns_ignore_list)
 
-    def _extract_dns_response(self, p):
+    def _extract_dns_response(self, dns_response_count, dns_response_list):
         """Extract dns response name/hosts
 
         Arguments:
-            p {packet} -- DNS packet
+            dns_response_count {integer} -- DNS answer count (default is 0)
+            dns_response_list {list} -- DNS answer list (default is null)
 
         Returns:
-            set() -- dns names
-            set() -- dns hosts
+            set() -- dns names, e.g. [host.xyz, host.com]
+            set() -- dns hosts, e.g. [1.1.1.1, 2.2.2.2]
         """
 
         res_names = set()
         res_hosts = set()
-        if p.ancount > 0 and isinstance(p.an, DNSRR):
-            for i in range(p.ancount):
-                an = p.an[i]
-                rdata = an.rdata
-                if rdata[-1] == ".":
-                    res_names.add(rdata[:-1])
-                else:
-                    res_hosts.add(rdata)
+        for i in range(dns_response_count):
+            an = dns_response_list[i]
+            rdata = an.rdata
+            if rdata[-1] == ".":
+                res_names.add(rdata[:-1])
+            else:
+                res_hosts.add(rdata)
         return res_names, res_hosts
 
     def _should_filter(self, p):
@@ -146,7 +146,7 @@ class PcapFilter(Processing):
                     req_name = p.qd.qname[:-1]  # remove dot
 
                 # extract dns response
-                res_names, res_hosts = self._extract_dns_response(p)
+                res_names, res_hosts = self._extract_dns_response(p.ancount, p.an)
 
                 if self._should_ignore_req_name(req_name):
                     self.dns_ignore_list.update(res_names)
