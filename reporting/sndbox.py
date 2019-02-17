@@ -147,6 +147,7 @@ class Sndbox(Report):
 
         if process_error:
             logger.warning("First process related error was found")
+            results["reporting_status"] = "processerror"
 
             # this will occur on all VMs, no point in retrying
             self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
@@ -161,12 +162,15 @@ class Sndbox(Report):
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
             logger.warning("No behavior was found")
+            results["reporting_status"] = "nobehavior"
 
         elif self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]:
             # in case we have a crash process and this sample is scheduled to have more retries, we should
             # run it again, this handles case where VMs sometimes perform poorly under heavy load
             logger.warning("Detected crash process")
+            results["reporting_status"] = "crash"
 
         else:
             self.send_success_notification(results["s3"], sample)
             self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
+            results["reporting_status"] = "completed"
