@@ -756,6 +756,9 @@ class Config(object):
                 "completed_sns_arn": String(),
                 "failed_sns_arn": String()
             },
+            "tasksummary": {
+                "enabled": Boolean(True),
+            },
             "reformat": {
                 "enabled": Boolean(True)
             },
