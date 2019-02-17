@@ -99,11 +99,31 @@ class PcapFilter(Processing):
             print "error %s" % e
             log.info('failed to filter pcap file. Error: %s', e)
 
-    def _ignore_req_name(self, req_name):
+    def _should_ignore_req_name(self, req_name):
+        """Check if dns request (host) should be ignored 
+        Also check the domain of the host
+
+        Arguments:
+            req_name {string} -- dns request name
+
+        Returns:
+            bool -- true if ignorable
+        """
+
         return req_name and (req_name.lower() in self.dns_ignore_list or
                              _domain(req_name.lower()) in self.dns_ignore_list)
 
     def _extract_dns_response(self, p):
+        """Extract dns response name/hosts
+
+        Arguments:
+            p {packet} -- DNS packet
+
+        Returns:
+            set() -- dns names
+            set() -- dns hosts
+        """
+
         res_names = set()
         res_hosts = set()
         if p.ancount > 0 and isinstance(p.an, DNSRR):
@@ -121,14 +141,14 @@ class PcapFilter(Processing):
         """
         try:
             if p.haslayer(DNS) or p.haslayer(LLMNRQuery):
-                req_name = res_name = res_host = None
+                req_name = None
                 if p.qdcount > 0 and isinstance(p.qd, DNSQR):
                     req_name = p.qd.qname[:-1]  # remove dot
 
                 # extract dns response
                 res_names, res_hosts = self._extract_dns_response(p)
 
-                if self._ignore_req_name(req_name):
+                if self._should_ignore_req_name(req_name):
                     self.dns_ignore_list.update(res_names)
                     self.host_ignore_list.update(res_hosts)
                     return True
