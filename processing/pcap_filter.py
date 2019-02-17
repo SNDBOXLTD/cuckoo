@@ -49,6 +49,7 @@ class PcapFilter(Processing):
         # For performance, and duplication handling we use set() data type
         self.host_ignore_list = set([
             '52.179.17.38',  # microsoft ntp server
+            '23.217.129.17',  # microsoft ncsi server
             '192.88.99.1'
         ])
 
@@ -58,8 +59,7 @@ class PcapFilter(Processing):
             'wpad',
             'time.windows.com',
             'teredo.ipv6.microsoft.com',
-            'www.msftncsi.com',
-            'dns.msftncsi.com',
+            'msftncsi.com',
             '6to4.ipv6.microsoft.com',
             'windowsupdate.com',
             'oracle.com',
@@ -87,7 +87,7 @@ class PcapFilter(Processing):
         start_time = time.time()
         try:
             pkts = rdpcap(self.pcap_path)
-            filtered = [pkt for pkt in pkts if not self._should_filter(pkt)]
+            filtered = filter(lambda pkt: not self._should_filter(pkt), pkts)
             # write the filtered packets to file
             wrpcap(self.pcap_path, filtered)
             log.info("Filtered %d packets, ignored: (%d,%d), elapsed time:%s",
@@ -99,31 +99,58 @@ class PcapFilter(Processing):
             print "error %s" % e
             log.info('failed to filter pcap file. Error: %s', e)
 
+    def _should_ignore_req_name(self, req_name):
+        """Check if dns request (host) should be ignored 
+        Also check the domain of the host
+
+        Arguments:
+            req_name {string} -- dns request name
+
+        Returns:
+            bool -- true if ignorable
+        """
+
+        return req_name and (req_name.lower() in self.dns_ignore_list or
+                             _domain(req_name.lower()) in self.dns_ignore_list)
+
+    def _extract_dns_response(self, dns_response_count, dns_response_list):
+        """Extract dns response name/hosts
+
+        Arguments:
+            dns_response_count {integer} -- DNS answer count (default is 0)
+            dns_response_list {list} -- DNS answer list (default is null)
+
+        Returns:
+            set() -- dns names, e.g. [host.xyz, host.com]
+            set() -- dns hosts, e.g. [1.1.1.1, 2.2.2.2]
+        """
+
+        res_names = set()
+        res_hosts = set()
+        for i in range(dns_response_count):
+            an = dns_response_list[i]
+            rdata = an.rdata
+            if rdata[-1] == ".":
+                res_names.add(rdata[:-1])
+            else:
+                res_hosts.add(rdata)
+        return res_names, res_hosts
+
     def _should_filter(self, p):
         """Filter vm network (dns, netbios, ssdp) traffic
         """
         try:
             if p.haslayer(DNS) or p.haslayer(LLMNRQuery):
-                req_name = res_name = res_host = None
+                req_name = None
                 if p.qdcount > 0 and isinstance(p.qd, DNSQR):
                     req_name = p.qd.qname[:-1]  # remove dot
 
-                # extract response
-                if p.ancount > 0 and isinstance(p.an, DNSRR):
-                    for i in range(p.ancount):
-                        an = p.an[i]
-                        rdata = an.rdata
-                        if rdata[-1] == ".":
-                            res_name = rdata[:-1]
-                        else:
-                            res_host = rdata
+                # extract dns response
+                res_names, res_hosts = self._extract_dns_response(p.ancount, p.an)
 
-                if req_name and req_name.lower() in self.dns_ignore_list or \
-                        _domain(req_name.lower()) in self.dns_ignore_list:
-                    if res_name:
-                        self.dns_ignore_list.add(res_name)
-                    if res_host:
-                        self.host_ignore_list.add(res_host)
+                if self._should_ignore_req_name(req_name):
+                    self.dns_ignore_list.update(res_names)
+                    self.host_ignore_list.update(res_hosts)
                     return True
 
             if p.haslayer(NBNSQueryRequest) or p.haslayer(NBNSRequest):
