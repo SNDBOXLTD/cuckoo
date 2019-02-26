@@ -49,8 +49,8 @@ class PcapFilter(Processing):
         # The above sets represent unique blacklisted values
         # For performance, and duplication handling we use set() data type
         self.host_ignore_list = set([
-            '52.179.17.38',  # microsoft ntp server
-            '23.217.129.17',  # microsoft ncsi server
+            '23.194.117.4', # adobe 
+            '72.21.91.29', # don't know ...
             '192.88.99.1'
         ])
 
