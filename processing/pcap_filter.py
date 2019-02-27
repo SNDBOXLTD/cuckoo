@@ -176,7 +176,7 @@ class PcapFilter(Processing):
 
     def _write_pcap(self, filtered):
         # write the filtered packets to file
-        file_path = self.pcap_path if not self.debug else self.pcap_path + '_filtered'
+        file_path = self.pcap_path if not hasattr(self, 'debug') else self.pcap_path + '_filtered'
         wrpcap(file_path, filtered)
         
 
