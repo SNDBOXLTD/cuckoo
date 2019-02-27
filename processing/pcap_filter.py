@@ -12,6 +12,7 @@ except ImportError:
     # init standalone processing
     class Processing(object):
         def __init__(self, pcap_path):
+            self.debug = True
             self.pcap_path = pcap_path
 
 SSDP_PAYLOAD = "M-SEARCH * HTTP/1.1\r\n" \
@@ -48,8 +49,8 @@ class PcapFilter(Processing):
         # The above sets represent unique blacklisted values
         # For performance, and duplication handling we use set() data type
         self.host_ignore_list = set([
-            '52.179.17.38',  # microsoft ntp server
-            '23.217.129.17',  # microsoft ncsi server
+            '23.194.117.4', # adobe 
+            '72.21.91.29', # don't know ...
             '192.88.99.1'
         ])
 
@@ -88,8 +89,7 @@ class PcapFilter(Processing):
         try:
             pkts = rdpcap(self.pcap_path)
             filtered = filter(lambda pkt: not self._should_filter(pkt), pkts)
-            # write the filtered packets to file
-            wrpcap(self.pcap_path, filtered)
+            self._write_pcap(filtered)
             log.info("Filtered %d packets, ignored: (%d,%d), elapsed time:%s",
                      len(pkts) - len(filtered),
                      len(self.host_ignore_list),
@@ -174,6 +174,11 @@ class PcapFilter(Processing):
 
         return False
 
+    def _write_pcap(self, filtered):
+        # write the filtered packets to file
+        file_path = self.pcap_path if not self.debug else self.pcap_path + '_filtered'
+        wrpcap(file_path, filtered)
+        
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
