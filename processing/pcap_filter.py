@@ -49,9 +49,11 @@ class PcapFilter(Processing):
         # The above sets represent unique blacklisted values
         # For performance, and duplication handling we use set() data type
         self.host_ignore_list = set([
-            '23.194.117.4', # adobe 
-            '72.21.91.29', # don't know ...
-            '192.88.99.1'
+            '23.194.117.4',  # adobe
+            '72.21.91.29',  # don't know ...
+            '192.88.99.1',
+            '224.0.0.251',  # mDNS
+            '104.70.70.251', '40.69.219.197', '40.79.65.237'  # win10 leftovers
         ])
 
         self.dns_ignore_list = set([
@@ -70,11 +72,91 @@ class PcapFilter(Processing):
             'adobe.com',
             'digicert.com',
             'symcb.com',  # DigiCert, Inc.
-            'symcd.com'  # DigiCert, Inc.
+            'symcd.com',  # DigiCert, Inc.
+            # win10 below (https://docs.microsoft.com/en-gb/windows/privacy/windows-endpoints-1803-non-enterprise-editions)
+            'msftconnecttest.com',
+            'petra-pc.local',
+            'cdn.onenote.net',
+            'client.wns.windows.com',
+            'update.microsoft.com',
+            'sls.microsoft.com',
+            'licensing.mp.microsoft.com',
+            'delivery.mp.microsoft.com',
+            'trafficshaping.dsp.mp.microsoft.com',
+            'do.dsp.mp.microsoft.com',
+            'settings-win.data.microsoft.com',
+            'login.live.com',
+            'tlu.dl.delivery.mp.microsoft.com',
+            'arc.msn.com',
+            'arc.msn.com.nsatc.net',
+            'au.download.windowsupdate.com',
+            'b.akamaiedge.net',
+            'cdn.onenote.net',
+            'client-office365-tas.msedge.net',
+            'evoke-windowsservices-tas.msedge.net',
+            'cloudtile.photos.microsoft.com.akadns.net',
+            'config.edge.skype.com',
+            'ctldl.windowsupdate.com',
+            'cy2.displaycatalog.md.mp.microsoft.com.akadns.net',
+            'cy2.licensing.md.mp.microsoft.com.akadns.net',
+            'cy2.settings.data.microsoft.com.akadns.net',
+            'displaycatalog.mp.microsoft.com',
+            'dm3p.wns.notify.windows.com.akadns.net',
+            'download.windowsupdate.com',
+            'e-msedge.net',
+            'emdl.ws.microsoft.com',
+            'fe2.update.microsoft.com',
+            'fe3.delivery.dsp.mp.microsoft.com.nsatc.net',
+            'fe3.delivery.mp.microsoft.com',
+            'flightingservicewus.cloudapp.net',
+            'g.akamaiedge.net',
+            'g.live.com',
+            'g.msn.com.nsatc.net',
+            'geo-prod.do.dsp.mp.microsoft.com',
+            'geo-prod.dodsp.mp.microsoft.com.nsatc.net',
+            'ip5.afdorigin-prod-am02.afdogw.com',
+            'ipv4.login.msa.akadns6.net',
+            'licensing.mp.microsoft.com',
+            'location-inference-westus.cloudapp.net',
+            'maps.windows.com',
+            'modern.watson.data.microsoft.com.akadns.net',
+            'ocos-office365-s2s.msedge.net',
+            'ocsp.digicert.com',
+            'oneclient.sfx.ms',
+            'onecollector.cloudapp.aria.akadns.net',
+            'prod.nexusrules.live.com.akadns.net',
+            'query.prod.cms.rt.microsoft.com',
+            'ris.api.iris.microsoft.com',
+            'ris.api.iris.microsoft.com.akadns.net',
+            's-msedge.net',
+            'msedge.net',
+            'm1-msedge.net',
+            'settings-win.data.microsoft.com',
+            'settings.data.microsoft.com',
+            'share.microsoft.com',
+            'sls.update.microsoft.com',
+            'storecatalogrevocation.storequality.microsoft.com',
+            'storeedgefd.dsx.mp.microsoft.com',
+            'telecommand.telemetry.microsoft.com.akadns.net',
+            'tile-service.weather.microsoft.com',
+            'tlu.dl.delivery.mp.microsoft.com',
+            'tsfe.trafficshaping.dsp.mp.microsoft.com',
+            'us.configsvc1.live.com.akadns.net',
+            'vip5.afdorigin-prod-am02.afdogw.com',
+            'vip5.afdorigin-prod-ch02.afdogw.com',
+            'watson.telemetry.microsoft.com',
+            'wd-prod-cp-us-east-2-fe.eastus.cloudapp.azure.com',
+            'wd-prod-cp-us-west-3-fe.westus.cloudapp.azure.com',
+            'windowsupdate.com',
+            'www.bing.com',
+            'www.office.com', # office
+            'eusofficehome.msocdn.com',
+            'self.events.data.microsoft.com',
+            'browser.pipe.aria.microsoft.com'
         ])
 
         self.netbios_ignore_list = set(
-            ['petra-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad'])
+            ['petra-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad', 'petra-pc.local'])
 
     def run(self):
         if not os.path.exists(self.pcap_path):
@@ -146,7 +228,8 @@ class PcapFilter(Processing):
                     req_name = p.qd.qname[:-1]  # remove dot
 
                 # extract dns response
-                res_names, res_hosts = self._extract_dns_response(p.ancount, p.an)
+                res_names, res_hosts = self._extract_dns_response(
+                    p.ancount, p.an)
 
                 if self._should_ignore_req_name(req_name):
                     self.dns_ignore_list.update(res_names)
@@ -176,12 +259,13 @@ class PcapFilter(Processing):
 
     def _write_pcap(self, filtered):
         # write the filtered packets to file
-        file_path = self.pcap_path if not hasattr(self, 'debug') else self.pcap_path + '_filtered'
+        file_path = self.pcap_path if not hasattr(
+            self, 'debug') else self.pcap_path + '_filtered'
         wrpcap(file_path, filtered)
-        
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    pcap_path = '/Users/tomerf/Downloads/e79e313dbd77727af748bae42926b065.pcap'
+    pcap_path = '/Users/tomerf/Downloads/bb9a06b8f2dd9d24c77f389d7b2b58d2.pcap'
     pf = PcapFilter(pcap_path)
     pf.run()
