@@ -79,6 +79,7 @@ class PcapFilter(Processing):
             'cdn.onenote.net',
             'client.wns.windows.com',
             'update.microsoft.com',
+            'www.microsoft.com',
             'sls.microsoft.com',
             'licensing.mp.microsoft.com',
             'delivery.mp.microsoft.com',
