@@ -5,6 +5,7 @@
 
 import json
 import os
+from socket import gethostname
 from datetime import datetime
 
 from cuckoo.common.abstracts import Report
@@ -31,6 +32,7 @@ class TaskSummary(Report):
         task["reporting_status"] = results["reporting_status"]
         task["reported_on"] = reported_on
         task["reporting_duration"] = reporting_time.total_seconds()
+        task["hostname"] = gethostname()
 
         task_summary_path = os.path.join(self.reports_path, "task_summary.json")
         with open(task_summary_path, "wb") as report: \
