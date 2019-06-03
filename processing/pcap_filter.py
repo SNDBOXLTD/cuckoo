@@ -58,6 +58,7 @@ class PcapFilter(Processing):
 
         self.dns_ignore_list = set([
             'petra-pc',
+            'google.com', # network check
             'isatap',
             'wpad',
             'time.windows.com',
