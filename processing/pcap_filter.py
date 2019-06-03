@@ -27,6 +27,8 @@ SSDP_PAYLOAD_TYPE2 = "M-SEARCH * HTTP/1.1\r\n" \
     "Man:\"ssdp:discover\"\r\n" \
     "MX:3\r\n\r\n"
 
+SNDBOX_DOT_COM = 'sndbox.com'  # network check
+
 
 def _strip_name(name):
     """strip non characters and return as lowercase
@@ -58,7 +60,6 @@ class PcapFilter(Processing):
 
         self.dns_ignore_list = set([
             'petra-pc',
-            'google.com', # network check
             'isatap',
             'wpad',
             'time.windows.com',
@@ -151,7 +152,7 @@ class PcapFilter(Processing):
             'wd-prod-cp-us-west-3-fe.westus.cloudapp.azure.com',
             'windowsupdate.com',
             'www.bing.com',
-            'www.office.com', # office
+            'www.office.com',  # office
             'eusofficehome.msocdn.com',
             'self.events.data.microsoft.com',
             'browser.pipe.aria.microsoft.com'
@@ -159,6 +160,9 @@ class PcapFilter(Processing):
 
         self.netbios_ignore_list = set(
             ['petra-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad', 'petra-pc.local'])
+
+        self.network_check_seen = False
+
 
     def run(self):
         if not os.path.exists(self.pcap_path):
@@ -182,6 +186,9 @@ class PcapFilter(Processing):
         except Exception as e:
             print "error %s" % e
             log.info('failed to filter pcap file. Error: %s', e)
+
+    def _should_ignore_network_check(self, req_name):
+        return not self.network_check_seen and (req_name and (req_name.lower() == SNDBOX_DOT_COM or _domain(req_name.lower()) == SNDBOX_DOT_COM))
 
     def _should_ignore_req_name(self, req_name):
         """Check if dns request (host) should be ignored 
@@ -238,6 +245,10 @@ class PcapFilter(Processing):
                     self.host_ignore_list.update(res_hosts)
                     return True
 
+                if self._should_ignore_network_check(req_name):
+                    self.network_check_seen = True
+                    return True
+
             if p.haslayer(NBNSQueryRequest) or p.haslayer(NBNSRequest):
                 name = _strip_name(p.QUESTION_NAME)
                 return name in self.netbios_ignore_list
@@ -268,6 +279,6 @@ class PcapFilter(Processing):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    pcap_path = '/Users/tomerf/Downloads/bb9a06b8f2dd9d24c77f389d7b2b58d2.pcap'
+    pcap_path = '/Users/tomerf/Downloads/d8adf71838bcd6989901e50f5809378b_ping.pcap'
     pf = PcapFilter(pcap_path)
     pf.run()
