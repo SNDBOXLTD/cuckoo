@@ -27,7 +27,7 @@ SSDP_PAYLOAD_TYPE2 = "M-SEARCH * HTTP/1.1\r\n" \
     "Man:\"ssdp:discover\"\r\n" \
     "MX:3\r\n\r\n"
 
-SNDBOX_DOT_COM = 'sndbox.com'  # network check
+CONNECTIVITY_HEALTHCHECK_DOMAIN = 'sndbox.com'  # network check
 
 
 def _strip_name(name):
@@ -161,9 +161,7 @@ class PcapFilter(Processing):
         self.netbios_ignore_list = set(
             ['petra-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad', 'petra-pc.local'])
 
-        self.network_check_to_see = 2 # count request and response
-        
-
+        self.network_check_to_see = 2  # count request and response
 
     def run(self):
         if not os.path.exists(self.pcap_path):
@@ -187,7 +185,7 @@ class PcapFilter(Processing):
 
     def _should_ignore_network_check(self, req_name):
         """Check if dns request to verify network should be ignored. """
-        return self.network_check_to_see and (req_name and (req_name.lower() == SNDBOX_DOT_COM or _domain(req_name.lower()) == SNDBOX_DOT_COM))
+        return self.network_check_to_see and (req_name and (req_name.lower() == CONNECTIVITY_HEALTHCHECK_DOMAIN or _domain(req_name.lower()) == CONNECTIVITY_HEALTHCHECK_DOMAIN))
 
     def _should_ignore_req_name(self, req_name):
         """Check if dns request (host) should be ignored 
