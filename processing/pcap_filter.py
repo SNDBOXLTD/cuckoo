@@ -161,17 +161,16 @@ class PcapFilter(Processing):
         self.netbios_ignore_list = set(
             ['petra-pc', 'workgroup', 'msbrowse', 'isatap', 'wpad', 'petra-pc.local'])
 
-        self.network_check_seen = False
+        self.network_check_to_see = 2 # count request and response
+        
 
 
     def run(self):
         if not os.path.exists(self.pcap_path):
-            log.warning("The PCAP file does not exist at path \"%s\".",
-                        self.pcap_path)
+            log.warning("The PCAP file does not exist at path \"%s\".", self.pcap_path)
 
         if not os.path.getsize(self.pcap_path):
-            log.error("The PCAP file at path \"%s\" is empty." %
-                      self.pcap_path)
+            log.error("The PCAP file at path \"%s\" is empty." % self.pcap_path)
 
         start_time = time.time()
         try:
@@ -183,12 +182,12 @@ class PcapFilter(Processing):
                      len(self.host_ignore_list),
                      len(self.dns_ignore_list),
                      time.time() - start_time)
-        except Exception as e:
-            print "error %s" % e
-            log.info('failed to filter pcap file. Error: %s', e)
+        except:
+            log.exception('failed to filter pcap file')
 
     def _should_ignore_network_check(self, req_name):
-        return not self.network_check_seen and (req_name and (req_name.lower() == SNDBOX_DOT_COM or _domain(req_name.lower()) == SNDBOX_DOT_COM))
+        """Check if dns request to verify network should be ignored. """
+        return self.network_check_to_see and (req_name and (req_name.lower() == SNDBOX_DOT_COM or _domain(req_name.lower()) == SNDBOX_DOT_COM))
 
     def _should_ignore_req_name(self, req_name):
         """Check if dns request (host) should be ignored 
@@ -237,8 +236,7 @@ class PcapFilter(Processing):
                     req_name = p.qd.qname[:-1]  # remove dot
 
                 # extract dns response
-                res_names, res_hosts = self._extract_dns_response(
-                    p.ancount, p.an)
+                res_names, res_hosts = self._extract_dns_response(p.ancount, p.an)
 
                 if self._should_ignore_req_name(req_name):
                     self.dns_ignore_list.update(res_names)
@@ -246,7 +244,7 @@ class PcapFilter(Processing):
                     return True
 
                 if self._should_ignore_network_check(req_name):
-                    self.network_check_seen = True
+                    self.network_check_to_see -= 1
                     return True
 
             if p.haslayer(NBNSQueryRequest) or p.haslayer(NBNSRequest):
@@ -265,15 +263,14 @@ class PcapFilter(Processing):
                 if p[Raw].load == SSDP_PAYLOAD or p[Raw].load == SSDP_PAYLOAD_TYPE2:
                     return True
 
-        except Exception as e:
-            log.error("Failed to parse packet: %s, with error %s", repr(p), e)
+        except:
+            log.exception("Failed to parse packet: %s", repr(p))
 
         return False
 
     def _write_pcap(self, filtered):
         # write the filtered packets to file
-        file_path = self.pcap_path if not hasattr(
-            self, 'debug') else self.pcap_path + '_filtered'
+        file_path = self.pcap_path if not hasattr(self, 'debug') else self.pcap_path + '_filtered'
         wrpcap(file_path, filtered)
 
 
