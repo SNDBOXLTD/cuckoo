@@ -71,6 +71,16 @@ class S3(Report):
         else:
             log.critical("PCAP File %s is missing" % pcap_path)
 
+    def upload_dropped(self, dropped_files, s3_path, s3_key):
+        for dropped in dropped_files:
+            path = dropped["path"]
+            if not os.path.isfile(path):
+                log.warning("dropped file at {} was not found".format(path))
+                continue
+
+            save_in = "{base}/dropped_files/{key}/{sha256}".format(base=s3_path, key=s3_key, sha256=dropped["sha256"])
+            s3.upload_file(path, self.options.bucket, save_in, ExtraArgs={"Metadata": {"original_name": dropped["name"]}})
+
     def run(self, results):
         """
         Exports the PCAP and the gzipped version of the report file to s3
@@ -80,14 +90,16 @@ class S3(Report):
         sample = json.loads(results["info"]["custom"])["sample"]
 
         pcap_path = os.path.join(self.analysis_path, "dump.pcap")
-        gzipped_report_path = self.gzip_report(sample["s3_key"])
 
         self.upload_pcap(pcap_path, sample["s3_path"], sample["s3_key"])
 
+        if results.get("dropped"):
+            self.upload_dropped(results["dropped"], sample["s3_path"], sample["s3_key"])
+
+        gzipped_report_path = self.gzip_report(sample["s3_key"])
         if gzipped_report_path:
             s3_report_path = self.upload_report(gzipped_report_path, sample["s3_key"])
             results["s3"] = {
                 "s3_bucket": self.options.bucket,
                 "s3_key": s3_report_path
             }
-
