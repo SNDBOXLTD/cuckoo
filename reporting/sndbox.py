@@ -141,6 +141,9 @@ class Sndbox(Report):
         debug = results['debug']
         custom = json.loads(results['info']['custom'])
         sample = custom["sample"]
+        is_office_package = self.task.get("package") in ['xls', 'doc', 'ppt']
+        logger.info("is office package: %s", is_office_package)
+
 
         process_error = self.has_process_error(debug)
         has_no_behavior = not results.get("behavior", False)
@@ -158,13 +161,13 @@ class Sndbox(Report):
                 process_error  # pass the error to the user
             )
 
-        elif debug['errors'] or has_no_behavior:
+        elif not is_office_package and (debug['errors'] or has_no_behavior):
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
             logger.warning("No behavior was found")
             results["reporting_status"] = "nobehavior"
 
-        elif self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]:
+        elif not is_office_package and self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]:
             # in case we have a crash process and this sample is scheduled to have more retries, we should
             # run it again, this handles case where VMs sometimes perform poorly under heavy load
             logger.warning("Detected crash process")
