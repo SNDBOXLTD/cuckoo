@@ -142,11 +142,10 @@ class Sndbox(Report):
         custom = json.loads(results['info']['custom'])
         sample = custom["sample"]
         is_office_package = self.task.get("package") in ['xls', 'doc', 'ppt']
-        logger.info("is office package: %s", is_office_package)
-
 
         process_error = self.has_process_error(debug)
-        has_no_behavior = not results.get("behavior", False)
+        has_no_behavior = debug['errors'] or not results.get("behavior", False)
+        has_crash_process = self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]
 
         if process_error:
             logger.warning("First process related error was found")
@@ -160,20 +159,26 @@ class Sndbox(Report):
                 debug,
                 process_error  # pass the error to the user
             )
+            return
 
-        elif not is_office_package and (debug['errors'] or has_no_behavior):
+
+        if has_no_behavior and not is_office_package:
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
             logger.warning("No behavior was found")
             results["reporting_status"] = "nobehavior"
+            return
 
-        elif not is_office_package and self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]:
+        if has_crash_process and not is_office_package:
             # in case we have a crash process and this sample is scheduled to have more retries, we should
             # run it again, this handles case where VMs sometimes perform poorly under heavy load
             logger.warning("Detected crash process")
             results["reporting_status"] = "crash"
+            return
 
-        else:
-            self.send_success_notification(results["s3"], sample)
-            self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
-            results["reporting_status"] = "completed"
+        if (has_no_behavior or has_crash_process) and is_office_package:
+            logger.warning("ignored a detected crash, package is office")
+
+        self.send_success_notification(results["s3"], sample)
+        self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
+        results["reporting_status"] = "completed"
