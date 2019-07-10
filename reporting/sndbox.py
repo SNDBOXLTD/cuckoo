@@ -144,8 +144,8 @@ class Sndbox(Report):
         is_office_package = self.task.get("package") in ['xls', 'doc', 'ppt']
 
         process_error = self.has_process_error(debug)
-        has_no_behavior = debug['errors'] or not results.get("behavior", False)
-        has_crash_process = self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]
+        has_errors_or_no_behavior = debug['errors'] or not results.get("behavior", False)
+        has_crash_process_and_should_retry = self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]
 
         if process_error:
             logger.warning("First process related error was found")
@@ -162,21 +162,21 @@ class Sndbox(Report):
             return
 
 
-        if has_no_behavior and not is_office_package:
+        if has_errors_or_no_behavior and not is_office_package:
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
             logger.warning("No behavior was found")
             results["reporting_status"] = "nobehavior"
             return
 
-        if has_crash_process and not is_office_package:
+        if has_crash_process_and_should_retry and not is_office_package:
             # in case we have a crash process and this sample is scheduled to have more retries, we should
             # run it again, this handles case where VMs sometimes perform poorly under heavy load
             logger.warning("Detected crash process")
             results["reporting_status"] = "crash"
             return
 
-        if (has_no_behavior or has_crash_process) and is_office_package:
+        if (has_errors_or_no_behavior or has_crash_process_and_should_retry) and is_office_package:
             logger.warning("ignored a detected crash, package is office")
 
         self.send_success_notification(results["s3"], sample)
