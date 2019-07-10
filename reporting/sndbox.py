@@ -162,22 +162,22 @@ class Sndbox(Report):
             return
 
 
-        if has_errors_or_no_behavior and not is_office_package:
+        if has_errors_or_no_behavior:
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
             logger.warning("No behavior was found")
             results["reporting_status"] = "nobehavior"
             return
 
-        if has_crash_process_and_should_retry and not is_office_package:
-            # in case we have a crash process and this sample is scheduled to have more retries, we should
-            # run it again, this handles case where VMs sometimes perform poorly under heavy load
-            logger.warning("Detected crash process")
-            results["reporting_status"] = "crash"
-            return
-
-        if (has_errors_or_no_behavior or has_crash_process_and_should_retry) and is_office_package:
-            logger.warning("ignored a detected crash, package is office")
+        if has_crash_process_and_should_retry:
+            if not is_office_package:
+                # in case we have a crash process and this sample is scheduled to have more retries, we should
+                # run it again, this handles case where VMs sometimes perform poorly under heavy load
+                logger.warning("Detected crash process")
+                results["reporting_status"] = "crash"
+                return
+            else:
+                logger.warning("ignored a detected crash, package is office")
 
         self.send_success_notification(results["s3"], sample)
         self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
