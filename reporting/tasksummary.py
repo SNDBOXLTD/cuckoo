@@ -29,8 +29,8 @@ class TaskSummary(Report):
         reported_on = datetime.now().strftime(format)
         reporting_time = datetime.now() - datetime.strptime(task["completed_on"]["$dt"], format)
 
-        task["reporting_status"] = results["reporting_status"]
-        task["reporting_status_ext"] = results["reporting_status_ext"]
+        task["reporting_status"] = results.get("reporting_status")
+        task["reporting_status_ext"] = results.get("reporting_status_ext")
         task["reported_on"] = reported_on
         task["reporting_duration"] = reporting_time.total_seconds()
         task["hostname"] = gethostname()
