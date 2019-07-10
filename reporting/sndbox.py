@@ -141,9 +141,11 @@ class Sndbox(Report):
         debug = results['debug']
         custom = json.loads(results['info']['custom'])
         sample = custom["sample"]
+        is_office_package = self.task.get("package") in ['xls', 'doc', 'ppt']
 
         process_error = self.has_process_error(debug)
-        has_no_behavior = not results.get("behavior", False)
+        has_errors_or_no_behavior = debug['errors'] or not results.get("behavior", False)
+        has_crash_process_and_should_retry = self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]
 
         if process_error:
             logger.warning("First process related error was found")
@@ -157,20 +159,27 @@ class Sndbox(Report):
                 debug,
                 process_error  # pass the error to the user
             )
+            return
 
-        elif debug['errors'] or has_no_behavior:
+
+        if has_errors_or_no_behavior:
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
-            logger.warning("No behavior was found")
+            logger.error("No behavior was found")
             results["reporting_status"] = "nobehavior"
+            return
 
-        elif self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]:
-            # in case we have a crash process and this sample is scheduled to have more retries, we should
-            # run it again, this handles case where VMs sometimes perform poorly under heavy load
-            logger.warning("Detected crash process")
-            results["reporting_status"] = "crash"
+        if has_crash_process_and_should_retry:
+            if is_office_package:
+                logger.warning("ignored a detected crash, package is office")
+                results["reporting_status_ext"] = "crash"
+            else:   
+                # in case we have a crash process and this sample is scheduled to have more retries, we should
+                # run it again, this handles case where VMs sometimes perform poorly under heavy load
+                logger.error("Detected crash process")
+                results["reporting_status"] = "crash"
+                return
 
-        else:
-            self.send_success_notification(results["s3"], sample)
-            self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
-            results["reporting_status"] = "completed"
+        self.send_success_notification(results["s3"], sample)
+        self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
+        results["reporting_status"] = "completed"
