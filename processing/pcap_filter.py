@@ -153,6 +153,8 @@ class PcapFilter(Processing):
             'windowsupdate.com',
             'www.bing.com',
             'www.office.com',  # office
+            'office14client.microsoft.com',
+            'office.microsoft.com',
             'eusofficehome.msocdn.com',
             'self.events.data.microsoft.com',
             'browser.pipe.aria.microsoft.com'
