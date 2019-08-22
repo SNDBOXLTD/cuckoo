@@ -60,13 +60,13 @@ class JsonDump(Report):
 
         self.erase_calls(results)
 
-        is_lightmode = self.task.get("options", {}).get("driver_lightmode", False)
+        is_ultrafast = self.task.get("options", {}).get("driver_ultrafast", False)
 
         try:
             filepath = os.path.join(self.reports_path, "report.json")
-            if is_lightmode:
-                # lightmode report is smaller in size and can be loaded to memory and then written directly into a file.
-                logger.info("using lightmode optimization")
+            if is_ultrafast:
+                # ultrafast report is smaller in size and can be loaded to memory and then written directly into a file.
+                logger.info("using ultrafast optimization")
                 with open(filepath, "wb") as report:
                     json_report = json.dumps(
                         results, default=default, sort_keys=False,
