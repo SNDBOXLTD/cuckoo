@@ -7,9 +7,12 @@ import calendar
 import datetime
 import json
 import os
+import logging
 
 from cuckoo.common.abstracts import Report
 from cuckoo.common.exceptions import CuckooReportError
+
+logger = logging.getLogger(__name__)
 
 def default(obj):
     if isinstance(obj, datetime.datetime):
@@ -17,6 +20,7 @@ def default(obj):
             obj = obj - obj.utcoffset()
         return calendar.timegm(obj.timetuple()) + obj.microsecond / 1000000.0
     raise TypeError("%r is not JSON serializable" % obj)
+
 
 class JsonDump(Report):
     """Saves analysis results in JSON format."""
@@ -56,13 +60,25 @@ class JsonDump(Report):
 
         self.erase_calls(results)
 
+        is_ultrafast = self.task.get("options", {}).get("driver_ultrafast", False)
+
         try:
             filepath = os.path.join(self.reports_path, "report.json")
-            with open(filepath, "wb", buffering=1024*1024) as report:
-                json.dump(
-                    results, report, default=default, sort_keys=False,
-                    indent=self.options.indent, encoding="latin-1"
-                )
+            if is_ultrafast:
+                # ultrafast report is smaller in size and can be loaded to memory and then written directly into a file.
+                logger.info("using ultrafast optimization")
+                with open(filepath, "wb") as report:
+                    json_report = json.dumps(
+                        results, default=default, sort_keys=False,
+                        indent=None, encoding="latin-1"
+                    )
+                    report.write(json_report)
+            else:
+                with open(filepath, "wb", buffering=1024*1024) as report:
+                    json.dump(
+                        results, report, default=default, sort_keys=False,
+                        indent=None, encoding="latin-1"
+                    )
         except (TypeError, IOError) as e:
             raise CuckooReportError("Failed to generate JSON report: %s" % e)
         finally:
