@@ -73,5 +73,6 @@ class Dropped(Processing):
                 dropped_files.append(file_info)
 
         whitelisted_dropped_files = [f for f in dropped_files if self._is_whitelisted_path(f['filepath'])]
+        logger.debug("whitelisted_dropped_files: %s", [(f['name'], f['filepath']) for f in whitelisted_dropped_files])
 
         return whitelisted_dropped_files
