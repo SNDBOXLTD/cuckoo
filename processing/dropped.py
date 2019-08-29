@@ -17,8 +17,9 @@ logger = logging.getLogger(__name__)
 class Dropped(Processing):
     """Dropped files analysis."""
 
-    def _is_whitelisted_path(self, file_path):
-        """Exclude common whitelist files.
+    def _is_valid_path(self, file_path):
+        """Check file path for common filtered paths.
+        return true if valid
         """
         whitelist_paths = [
             '\Users\Petra\AppData\Roaming\Microsoft\UProof\ExcludeDictionary',
@@ -72,7 +73,7 @@ class Dropped(Processing):
                 file_info = File(file_path=file_path).get_all()
                 dropped_files.append(file_info)
 
-        whitelisted_dropped_files = [f for f in dropped_files if self._is_whitelisted_path(f['filepath'])]
-        logger.debug("whitelisted_dropped_files: %s", [(f['name'], f['filepath']) for f in whitelisted_dropped_files])
+        filtered_dropped_files = [f for f in dropped_files if self._is_valid_path(f['filepath'])]
+        logger.debug("filtered_dropped_files: %s", [(f['name'], f['filepath']) for f in filtered_dropped_files])
 
-        return whitelisted_dropped_files
+        return filtered_dropped_files
