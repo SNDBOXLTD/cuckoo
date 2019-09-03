@@ -32,12 +32,12 @@ class Dropped(Processing):
             '\Windows\System32\winevt\Logs',
         ]
         whitelist_regex_patterns = [
-            r'\\Users\\Petra\\AppData\\Local\\Temp\\[0-9]+.*\.cvr',
+            r'\\Users\\Petra\\AppData\\Local\\Temp\\[0-9a-fA-F]+.*\.(cvr|tmp)',
             r'\\Users\\Petra\\AppData\\Local\\Microsoft\\Windows\\Temporary Internet Files\\Content.MSO\\[0-9a-fA-F]+.(emf|wmf|dat)',
             r'\\Users\\Petra\\AppData\\Local\\Temp\\\w+.tmp.WERInternalMetadata.xml',
             r'\\Users\\Petra\\AppData\\Local\\Temp\\(Word8.0|Excel8.0|VBE)\\.*.exd',
             r'\\Users\\Petra\\AppData\\Roaming\\Microsoft\\Forms\\.*.exd',
-            r'\\Users\\Petra\\AppData\\Roaming\\Microsoft\\Office\\.*\.xml',
+            r'\\Users\\Petra\\AppData\\Roaming\\Microsoft\\Office\\.*\.(xml|acl)',
         ]
 
         paths_test = all(path not in file_path for path in whitelist_paths)
