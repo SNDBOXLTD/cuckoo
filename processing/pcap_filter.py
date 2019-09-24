@@ -157,7 +157,8 @@ class PcapFilter(Processing):
             'office.microsoft.com',
             'eusofficehome.msocdn.com',
             'self.events.data.microsoft.com',
-            'browser.pipe.aria.microsoft.com'
+            'browser.pipe.aria.microsoft.com',
+            'watson.microsoft.com'
         ])
 
         self.netbios_ignore_list = set(
