@@ -21,6 +21,9 @@ class Dropped(Processing):
         """Check file path for common filtered paths.
         return true if valid
         """
+        if not file_path:
+            return False
+
         whitelist_paths = [
             '\Users\Petra\AppData\Roaming\Microsoft\UProof\ExcludeDictionary',
             '\Users\Petra\AppData\Local\Temp\~$',
@@ -73,7 +76,7 @@ class Dropped(Processing):
                 file_info = File(file_path=file_path).get_all()
                 dropped_files.append(file_info)
 
-        filtered_dropped_files = [f for f in dropped_files if self._is_valid_path(f['filepath'])]
+        filtered_dropped_files = [f for f in dropped_files if self._is_valid_path(f.get('filepath'))]
         logger.debug("filtered_dropped_files: %s", [(f['name'], f['filepath']) for f in filtered_dropped_files])
 
         return filtered_dropped_files
