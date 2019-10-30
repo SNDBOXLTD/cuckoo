@@ -25,6 +25,7 @@ class Dropped(Processing):
             return False
 
         whitelist_paths = [
+            # office whitelist
             '\Users\Petra\AppData\Roaming\Microsoft\UProof\ExcludeDictionary',
             '\Users\Petra\AppData\Local\Temp\~$',
             '\Users\Petra\AppData\Local\Microsoft\Windows\Temporary Internet Files\Content.Word\~',
@@ -33,6 +34,10 @@ class Dropped(Processing):
             '\Users\Petra\AppData\LocalLow\Microsoft\CryptnetUrlCache\Content',
             '\Users\Petra\AppData\LocalLow\Microsoft\CryptnetUrlCache\MetaData',
             '\Windows\System32\winevt\Logs',
+            # pdf whitelist
+            '\Users\Petra\AppData\Local\Temp\ArmUI.ini',
+            '\Users\Petra\AppData\Local\Temp\AdobeARM.log',
+            '\Users\Petra\AppData\LocalLow\Adobe\Acrobat\DC\ReaderMessages',
         ]
         whitelist_regex_patterns = [
             r'\\Users\\Petra\\AppData\\Local\\Temp\\[0-9a-fA-F]+.*\.(cvr|tmp)',
