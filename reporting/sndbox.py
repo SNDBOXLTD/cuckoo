@@ -46,16 +46,19 @@ class Sndbox(Report):
         cls._sns = boto3.client("sns")
         cls._sqs = boto3.client('sqs')
 
-    def send_success_notification(self, s3, sample):
+    def send_success_notification(self, s3, sample, trace):
         """
         sends an SNS notification, along with the
         Args:
             s3: the location of the uploaded gzipped report on s3
             sample: the sample JSON properties, was sent original from the web backend
+            trace: trace context of the Cuckoo span
 
         Returns:
             None
         """
+        sample["trace"] = trace
+
         message = {
             "sample": sample,
             "payload": s3
@@ -178,6 +181,6 @@ class Sndbox(Report):
                 results["reporting_status"] = "crash"
                 return
 
-        self.send_success_notification(results["s3"], sample)
+        self.send_success_notification(results["s3"], sample, custom.get('trace'))
         self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
         results["reporting_status"] = "completed"
