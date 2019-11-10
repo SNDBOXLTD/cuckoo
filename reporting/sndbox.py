@@ -179,6 +179,8 @@ class Sndbox(Report):
                 # run it again, this handles case where VMs sometimes perform poorly under heavy load
                 logger.error("Detected crash process")
                 results["reporting_status"] = "crash"
+                # change message visibility to 0 in order for another consumer to immediately pull it
+                self._sqs.change_message_visibility(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'], VisibilityTimeout=0)
                 return
 
         self.send_success_notification(results["s3"], sample, custom.get('trace'))
