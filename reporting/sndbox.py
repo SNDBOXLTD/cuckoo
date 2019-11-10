@@ -149,6 +149,8 @@ class Sndbox(Report):
             # helpful here since this might be an issue with this host only.
             logger.error("No behavior was found")
             results["reporting_status"] = "nobehavior"
+            # change message visibility to 0 in order for another consumer to immediately pull it
+            self._sqs.change_message_visibility(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'], VisibilityTimeout=0)
             return
 
         self.send_success_notification(results["s3"], sample, custom.get('trace'))
