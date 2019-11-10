@@ -55,4 +55,11 @@ class DataDog(Report):
         reporting_span = tracer.start_span('cuckoo.analysis.reporting', service=self.options.service_name,
                                            child_of=context)
         reporting_span.start = finish_timestamp
+
+        reporting_status = results.get("reporting_status")
+        if reporting_status and reporting_status != "completed":
+            reporting_span.set_tags({
+                "error.type": reporting_status
+            })
+
         reporting_span.finish()
