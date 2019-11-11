@@ -46,16 +46,19 @@ class Sndbox(Report):
         cls._sns = boto3.client("sns")
         cls._sqs = boto3.client('sqs')
 
-    def send_success_notification(self, s3, sample):
+    def send_success_notification(self, s3, sample, trace):
         """
         sends an SNS notification, along with the
         Args:
             s3: the location of the uploaded gzipped report on s3
             sample: the sample JSON properties, was sent original from the web backend
+            trace: trace context of the Cuckoo span
 
         Returns:
             None
         """
+        sample["trace"] = trace
+
         message = {
             "sample": sample,
             "payload": s3
@@ -104,23 +107,6 @@ class Sndbox(Report):
             if match:
                 return match.group(1)  # returns the first group
 
-    @staticmethod
-    def has_crash_process(processes):
-        """
-        Check if a process that is related to a crash is found in a list of processes
-        :param processes: list of processes
-        :return: boolean indicating whether a crash process was found
-        """
-        process_paths = (
-            '\\Device\\HarddiskVolume2\\Windows\\Microsoft.NET\\Framework\\v2.0.50727\\dw20.exe',
-            '\\Device\\HarddiskVolume2\\Program Files\\Common Files\\microsoft shared\\DW\\DW20.EXE',
-            '\\Device\\HarddiskVolume2\\Windows\\x86_netfx-dw-b03f5f711d50a3a_6.1.7600.16385_none_a223bd3dd785391a\\dw20.exe',
-            '\\Device\\HarddiskVolume2\\Windows\\System32\\WerFault.exe',
-            '\\Device\\HarddiskVolume2\\Windows\\System32\\wermgr.exe'
-        )
-        found_processes = filter(lambda p: p["process_path"] in process_paths, processes)
-        return len(found_processes) > 0
-
     def run(self, results):
         """
         Notifies about a successful/unsuccessful analysis.
@@ -141,7 +127,6 @@ class Sndbox(Report):
         debug = results['debug']
         custom = json.loads(results['info']['custom'])
         sample = custom["sample"]
-        is_office_package = self.task.get("package") in ['xls', 'doc', 'ppt']
         has_no_behavior = not results.get("behavior", False)
         process_error = self.has_process_error(debug)
 
@@ -164,22 +149,10 @@ class Sndbox(Report):
             # helpful here since this might be an issue with this host only.
             logger.error("No behavior was found")
             results["reporting_status"] = "nobehavior"
+            # change message visibility to 0 in order for another consumer to immediately pull it
+            self._sqs.change_message_visibility(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'], VisibilityTimeout=0)
             return
 
-
-        if self.has_crash_process(results["behavior"]["processes"]) and not custom["soon_to_retire"]:
-            if is_office_package:
-                logger.warning("ignored a detected crash, package is office")
-                results["reporting_status_ext"] = "crash"
-            else:
-                # in case we have a crash process and this sample is scheduled to have more retries, we should
-                # run it again, this handles case where VMs sometimes perform poorly under heavy load
-                logger.error("Detected crash process")
-                results["reporting_status"] = "crash"
-                # change message visibility to 0 in order for another consumer to immediately pull it
-                self._sqs.change_message_visibility(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'], VisibilityTimeout=0)
-                return
-
-        self.send_success_notification(results["s3"], sample)
+        self.send_success_notification(results["s3"], sample, custom.get('trace'))
         self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
         results["reporting_status"] = "completed"
