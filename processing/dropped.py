@@ -46,6 +46,7 @@ class Dropped(Processing):
             r'\\Users\\Petra\\AppData\\Local\\Temp\\(Word8.0|Excel8.0|VBE)\\.*.exd',
             r'\\Users\\Petra\\AppData\\Roaming\\Microsoft\\Forms\\.*.exd',
             r'\\Users\\Petra\\AppData\\Roaming\\Microsoft\\Office\\.*\.(xml|acl)',
+            r'\\Users\\Petra\\AppData\\Roaming\\Microsoft\\Office\\Recent\\.*\.(dat|lnk|LNK)',
         ]
 
         paths_test = all(path not in file_path for path in whitelist_paths)
