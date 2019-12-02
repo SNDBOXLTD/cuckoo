@@ -11,6 +11,7 @@ import calendar
 import datetime
 import boto3
 import logging
+import requests
 import re
 
 logger = logging.getLogger(__name__)
@@ -59,15 +60,12 @@ class Sndbox(Report):
         """
         sample["trace"] = trace
 
-        message = {
+        data = {
             "sample": sample,
             "payload": s3
         }
 
-        self._sns.publish(
-            TopicArn=self.options.completed_sns_arn,
-            Message=json.dumps(message)
-        )
+        requests.post(self.options.get('sndbox_api', None) + '/onprem/complete', json=data)
 
     def send_failure_notification(self, sample, logs, message=None):
         """

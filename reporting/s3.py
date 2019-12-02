@@ -7,13 +7,13 @@ Date:           18/09/2017
 
 from cuckoo.common.abstracts import Report
 import boto3
+from botocore.client import Config
 import os
 import json
 import gzip
 import logging
 
 log = logging.getLogger(__name__)
-s3 = boto3.client("s3")
 
 
 class S3(Report):
@@ -22,6 +22,22 @@ class S3(Report):
     """
 
     order = 2
+    init = False
+
+    @classmethod
+    def init_once(cls):
+        cls.init = False
+
+    def setup(self):
+        if (not self.init):
+            self._s3 = boto3.resource('s3',
+                                      endpoint_url=self.options.get('endpoint'),
+                                      aws_access_key_id=self.options.get('key_id'),
+                                      aws_secret_access_key=self.options.get('access_key'),
+                                      config=Config(signature_version='s3v4'),
+                                      region_name='us-east-1')
+
+            self.init = True
 
     def gzip_report(self, name):
         """
@@ -50,7 +66,7 @@ class S3(Report):
         """
         if os.path.isfile(report_path):
             s3_report_path = os.path.join("dynamic_tmp/", name + ".json.gz")
-            s3.upload_file(report_path, self.options.bucket, s3_report_path)
+            self._s3.upload_file(report_path, self.options.bucket, s3_report_path)
             return s3_report_path
         else:
             log.critical("Report GZIP File %s is missing" % report_path)
@@ -66,8 +82,9 @@ class S3(Report):
         """
         if os.path.isfile(pcap_path):
             save_in = s3_path + "/pcaps/" + name + ".pcap"
-            s3.upload_file(pcap_path, self.options.bucket, save_in)
+            self._s3.upload_file(pcap_path, self.options.bucket, save_in)
             return save_in
+
         else:
             log.critical("PCAP File %s is missing" % pcap_path)
 
@@ -79,7 +96,8 @@ class S3(Report):
                 continue
 
             save_in = "{base}/dropped_files/{key}/{sha256}".format(base=s3_path, key=s3_key, sha256=dropped["sha256"])
-            s3.upload_file(path, self.options.bucket, save_in, ExtraArgs={"Metadata": {"original_name": dropped["name"]}})
+            extra_args = {"Metadata": {"original_name": dropped["name"]}}
+            self._s3.upload_file(path, self.options.bucket, save_in, ExtraArgs=extra_args)
 
     def run(self, results):
         """
@@ -87,6 +105,7 @@ class S3(Report):
         along with its original filename
         :param results: the full report
         """
+        self.setup()
         sample = json.loads(results["info"]["custom"])["sample"]
 
         pcap_path = os.path.join(self.analysis_path, "dump.pcap")

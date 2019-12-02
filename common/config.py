@@ -749,12 +749,16 @@ class Config(object):
             },
             "s3": {
                 "enabled": Boolean(True),
-                "bucket": String()
+                "bucket": String(),
+                "endpoint": String(),
+                "key_id": String(),
+                "access_key": String(),
             },
             "sndbox": {
                 "enabled": Boolean(True),
                 "completed_sns_arn": String(),
-                "failed_sns_arn": String()
+                "failed_sns_arn": String(),
+                "sndbox_api": String()
             },
             "datadog": {
                 "enabled": Boolean(True),
