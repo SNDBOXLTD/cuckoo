@@ -94,7 +94,10 @@ class S3(Report):
 
             save_in = "{base}/dropped_files/{key}/{sha256}".format(base=s3_path, key=s3_key, sha256=dropped["sha256"])
             metadata = {"original_name": dropped["name"]}
-            self._s3.fput_object(bucket_name=self.options.bucket, object_name=save_in, file_path=path, metadata=metadata)
+            try:
+                self._s3.fput_object(bucket_name=self.options.bucket, object_name=save_in, file_path=path, metadata=metadata)
+            except:
+                log.exception("failed to upload dropped file, with params: %s, metadata: %s", save_in, metadata)
 
     def run(self, results):
         """
