@@ -6,8 +6,7 @@ Date:           18/09/2017
 """
 
 from cuckoo.common.abstracts import Report
-import boto3
-from botocore.client import Config
+from minio import Minio
 import os
 import json
 import gzip
@@ -30,12 +29,10 @@ class S3(Report):
 
     def setup(self):
         if (not self.init):
-            self._s3 = boto3.resource('s3',
-                                      endpoint_url=self.options.get('endpoint'),
-                                      aws_access_key_id=self.options.get('key_id'),
-                                      aws_secret_access_key=self.options.get('access_key'),
-                                      config=Config(signature_version='s3v4'),
-                                      region_name='us-east-1')
+            self._s3 = Minio(endpoint=self.options.get('endpoint'),
+                             access_key=self.options.get('key_id'),
+                             secret_key=self.options.get('access_key'),
+                             secure=True)
 
             self.init = True
 
@@ -66,7 +63,7 @@ class S3(Report):
         """
         if os.path.isfile(report_path):
             s3_report_path = os.path.join("dynamic_tmp/", name + ".json.gz")
-            self._s3.upload_file(report_path, self.options.bucket, s3_report_path)
+            self._s3.fput_object(bucket_name=self.options.bucket, object_name=s3_report_path, file_path=report_path)
             return s3_report_path
         else:
             log.critical("Report GZIP File %s is missing" % report_path)
@@ -82,7 +79,7 @@ class S3(Report):
         """
         if os.path.isfile(pcap_path):
             save_in = s3_path + "/pcaps/" + name + ".pcap"
-            self._s3.upload_file(pcap_path, self.options.bucket, save_in)
+            self._s3.fput_object(bucket_name=self.options.bucket, object_name=save_in, file_path=pcap_path)
             return save_in
 
         else:
@@ -96,8 +93,8 @@ class S3(Report):
                 continue
 
             save_in = "{base}/dropped_files/{key}/{sha256}".format(base=s3_path, key=s3_key, sha256=dropped["sha256"])
-            extra_args = {"Metadata": {"original_name": dropped["name"]}}
-            self._s3.upload_file(path, self.options.bucket, save_in, ExtraArgs=extra_args)
+            metadata = {"original_name": dropped["name"]}
+            self._s3.fput_object(bucket_name=self.options.bucket, object_name=save_in, file_path=path, metadata=metadata)
 
     def run(self, results):
         """
