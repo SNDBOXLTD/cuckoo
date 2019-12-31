@@ -756,13 +756,6 @@ class Config(object):
                 "completed_sns_arn": String(),
                 "failed_sns_arn": String()
             },
-            "datadog": {
-                "enabled": Boolean(True),
-                "agent_host": String(),
-                "agent_port": Int(),
-                "service_name": String(),
-                "environment": String()
-            },
             "tasksummary": {
                 "enabled": Boolean(True),
             },
