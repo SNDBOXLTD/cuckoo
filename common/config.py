@@ -750,17 +750,14 @@ class Config(object):
             "s3": {
                 "enabled": Boolean(True),
                 "bucket": String(),
-                "endpoint": String()
+                "endpoint": String(),
+                "key_id": String(),
+                "access_key": String(),
             },
             "sndbox": {
                 "enabled": Boolean(True),
-                "sqs_endpoint": String(),
-                "sqs_use_ssl": Boolean(False),
-                "sqs_queue": String(),
-                "sns_endpoint": String(),
-                "completed_sns_arn": String(),
-                "failed_sns_arn": String(),
-                "sndbox_api": String()
+                "sndbox_api": String(),
+                "amqp_endpoint": String(),
             },
             "tasksummary": {
                 "enabled": Boolean(True),

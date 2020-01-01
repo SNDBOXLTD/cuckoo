@@ -13,6 +13,7 @@ import boto3
 import logging
 import requests
 import re
+import pika
 
 logger = logging.getLogger(__name__)
 
@@ -44,40 +45,31 @@ class Sndbox(Report):
 
     @classmethod
     def init_once(self):
+        logging.info("init_once")
         self.init = False
 
-    def setup(self):
-        if (not self.init):
-            sqs_client = boto3.resource('sqs',
-                                endpoint_url=self.options.get('sqs_endpoint', None),
-                                use_ssl=self.options.get('sqs_use_ssl', True)
-                                )
+    def _setup(self):
+        if not self.init:
+            connection = pika.BlockingConnection(pika.URLParameters(self.options.get('amqp_endpoint')))
+            self._channel = connection.channel()
 
-            self._sqs = sqs_client.get_queue_by_name(QueueName=self.options.sqs_queue)
-            self._sns = boto3.client('sns',
-                                endpoint_url=self.options.get('sns_endpoint', None)
-                                )
             self.init = True
 
-    def remove_from_queue(self, receipt_handle):
+    def _send_reporting_status_notification(self, analysis_id, to, success):
         """
-        Removes a message from the SQS queue given a receipt handle
-        Args:
-            receipt_handle: str
-                The receipt_handle of the sample
+        Notifies about the status of the reporting process to the consumer component.
 
-        Returns:
-            None
+        :param analysis_id: string, uuid
+        :param to: string, consumer's RPC queue
+        :param success: boolean, whether the reporting process is successful
+        :return: None
         """
-        logger.info("Removing sample from queue")
-        message_delete_entry = {
-            'Id': '1',  # unique_request_id
-            'ReceiptHandle': receipt_handle
-        }
+        message = {"success": success, "analysis_id": analysis_id}
+        self._channel.basic_publish(exchange='',
+                                    routing_key=to,
+                                    body=json.dumps(message))
 
-        self._sqs.delete_messages(Entries=[message_delete_entry])
-
-    def send_success_notification(self, s3, sample):
+    def _send_success_notification(self, s3, sample):
         """
         sends an SNS notification, along with the
         Args:
@@ -95,29 +87,8 @@ class Sndbox(Report):
 
         requests.post(self.options.get('sndbox_api', None) + '/onprem/complete', json=data)
 
-    def send_failure_notification(self, sample, logs, message=None):
-        """
-        Sends an analysis failure notification to indicate that something
-        is wrong with an analysis
-
-        :param sample: sample dict
-        :param logs: logs to be saved internally
-        :param message: user-friendly message to be displayed in the user interface
-        :return:
-        """
-        self._sns.publish(
-            TopicArn=self.options.failed_sns_arn,
-            Message=json.dumps({
-                "where": "dynamic",
-                "sample": sample,
-                "message": message,
-                "logs": logs
-            })
-
-        )
-
     @staticmethod
-    def has_process_error(debug):
+    def _has_process_error(debug):
         """
         Checks if there were any CreateProcess errors that's worth showing
         to the end user, for example, if the sample is not a valid PE x32
@@ -145,40 +116,28 @@ class Sndbox(Report):
         :param results: cuckoo results
         :return:
         """
-        self.setup()
+        self._setup()
+
         if "s3" not in results:
             logger.critical("S3 upload was not successful, aborting")
             return
 
         debug = results['debug']
-        custom = json.loads(results['info']['custom'])
-        sample = custom["sample"]
+        custom_payload = json.loads(results['info']['custom'])
+        sample = custom_payload["sample"]
+
         has_no_behavior = not results.get("behavior", False)
-        process_error = self.has_process_error(debug)
+        process_error = self._has_process_error(debug)
 
         if process_error:
             logger.warning("First process related error was found")
-            results["reporting_status"] = "processerror"
-
-            # this will occur on all VMs, no point in retrying
-            self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
-
-            self.send_failure_notification(
-                sample,
-                debug,
-                process_error  # pass the error to the user
-            )
-            return
+            return self._send_reporting_status_notification(sample["id"], custom_payload["reply_to"], success=False)
 
         if debug['errors'] or has_no_behavior:
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
-            logger.error("No behavior was found")
-            results["reporting_status"] = "nobehavior"
-            # change message visibility to 0 in order for another consumer to immediately pull it
-            self._sqs.change_message_visibility(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'], VisibilityTimeout=0)
-            return
+            logger.warning("No behavior was found")
+            return self._send_reporting_status_notification(sample["id"], custom_payload["reply_to"], success=False)
 
-        self.send_success_notification(results["s3"], sample)
-        self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
-        results["reporting_status"] = "completed"
+        self._send_success_notification(results["s3"], sample)
+        self._send_reporting_status_notification(sample["id"], custom_payload["reply_to"], success=True)
