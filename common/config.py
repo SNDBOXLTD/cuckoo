@@ -759,7 +759,11 @@ class Config(object):
                 "sqs_queue": String(),
                 "sns_endpoint": String(),
                 "completed_sns_arn": String(),
-                "failed_sns_arn": String()
+                "failed_sns_arn": String(),
+                "sndbox_api": String()
+            },
+            "tasksummary": {
+                "enabled": Boolean(True),
             },
             "reformat": {
                 "enabled": Boolean(True)

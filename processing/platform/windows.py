@@ -318,7 +318,7 @@ def find_and_normalize(value):
     """
     Normalizes both strings and dicts that contain strings
     :param value: value that might contain path that needs normalizing, for example:
-        ??C:\\Users\Jack\data??.txt
+        ??C:\\Users\Petra\data??.txt
     :return: normalized string or tuple
     """
     if isinstance(value, dict):
@@ -342,7 +342,7 @@ def normalize_dict_value(data):
 
 def normalize_path(path):
     normal_path = path.replace("\\??\\", "")
-    return re.sub(r':\\Users\\+(Jack)', ':\Users\<USER>', normal_path)
+    return re.sub(r':\\Users\\+(Petra)', ':\Users\<USER>', normal_path)
 
 
 def is_driver_null(data):
@@ -554,7 +554,7 @@ class BehaviorReconstructor(object):
 
     def _api_ZwCreateMutant(self, return_value, arguments, flags):
         if arguments["MutexName"]:
-            mutex = arguments["MutexName"].replace("!jack", "!<USER>")
+            mutex = arguments["MutexName"].replace("!petra", "!<USER>")
             return single("mutex", mutex)
 
     # Process stuff.

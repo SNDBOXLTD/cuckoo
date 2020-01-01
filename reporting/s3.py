@@ -6,7 +6,7 @@ Date:           18/09/2017
 """
 
 from cuckoo.common.abstracts import Report
-import boto3
+from minio import Minio
 import os
 import json
 import gzip
@@ -14,19 +14,27 @@ import logging
 
 log = logging.getLogger(__name__)
 
+
 class S3(Report):
     """
     Responsible to export the results to S3
     """
 
     order = 2
+    init = False
+
+    @classmethod
+    def init_once(cls):
+        cls.init = False
 
     def setup(self):
-        s3_config = boto3.session.Config(s3={'addressing_style': 'path'})
-        s3 = boto3.resource('s3',
-                            endpoint_url=self.options.get('endpoint', None),
-                            config=s3_config)
-        self._s3 = s3.Bucket(self.options.bucket)
+        if (not self.init):
+            self._s3 = Minio(endpoint=self.options.get('endpoint'),
+                             access_key=self.options.get('key_id'),
+                             secret_key=self.options.get('access_key'),
+                             secure=True)
+
+            self.init = True
 
     def gzip_report(self, name):
         """
@@ -55,7 +63,7 @@ class S3(Report):
         """
         if os.path.isfile(report_path):
             s3_report_path = os.path.join("dynamic_tmp/", name + ".json.gz")
-            self._s3.upload_file(report_path, s3_report_path)
+            self._s3.fput_object(bucket_name=self.options.bucket, object_name=s3_report_path, file_path=report_path)
             return s3_report_path
         else:
             log.critical("Report GZIP File %s is missing" % report_path)
@@ -71,10 +79,25 @@ class S3(Report):
         """
         if os.path.isfile(pcap_path):
             save_in = s3_path + "/pcaps/" + name + ".pcap"
-            self._s3.upload_file(pcap_path, save_in)
+            self._s3.fput_object(bucket_name=self.options.bucket, object_name=save_in, file_path=pcap_path)
             return save_in
+
         else:
             log.critical("PCAP File %s is missing" % pcap_path)
+
+    def upload_dropped(self, dropped_files, s3_path, s3_key):
+        for dropped in dropped_files:
+            path = dropped["path"]
+            if not os.path.isfile(path):
+                log.warning("dropped file at {} was not found".format(path))
+                continue
+
+            save_in = "{base}/dropped_files/{key}/{sha256}".format(base=s3_path, key=s3_key, sha256=dropped["sha256"])
+            metadata = {"original_name": dropped["name"]}
+            try:
+                self._s3.fput_object(bucket_name=self.options.bucket, object_name=save_in, file_path=path)
+            except:
+                log.exception("failed to upload dropped file, with params: %s, metadata: %s", save_in, metadata)
 
     def run(self, results):
         """
@@ -83,16 +106,18 @@ class S3(Report):
         :param results: the full report
         """
         self.setup()
-        custom = json.loads(results["info"]["custom"])
+        sample = json.loads(results["info"]["custom"])["sample"]
 
         pcap_path = os.path.join(self.analysis_path, "dump.pcap")
-        gzipped_report_path = self.gzip_report(custom["s3_key"])
 
-        self.upload_pcap(pcap_path, custom["s3_path"], custom["s3_key"])
+        self.upload_pcap(pcap_path, sample["s3_path"], sample["s3_key"])
 
+        if results.get("dropped"):
+            self.upload_dropped(results["dropped"], sample["s3_path"], sample["s3_key"])
+
+        gzipped_report_path = self.gzip_report(sample["s3_key"])
         if gzipped_report_path:
-            s3_report_path = self.upload_report(
-                gzipped_report_path, custom["s3_key"])
+            s3_report_path = self.upload_report(gzipped_report_path, sample["s3_key"])
             results["s3"] = {
                 "s3_bucket": self.options.bucket,
                 "s3_key": s3_report_path

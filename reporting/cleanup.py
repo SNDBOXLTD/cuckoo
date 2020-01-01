@@ -38,7 +38,7 @@ class Cleanup(Report):
             None
         """
         if self.analysis_path:
-            files_to_keep = ["cuckoo.log"]
+            files_to_keep = ["cuckoo.log", "task.json"]
 
             for f in self.list_files(self.analysis_path):
                 if f.rsplit("/", 1)[1] not in files_to_keep:

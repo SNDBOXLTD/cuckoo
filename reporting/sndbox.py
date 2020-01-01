@@ -11,6 +11,7 @@ import calendar
 import datetime
 import boto3
 import logging
+import requests
 import re
 
 logger = logging.getLogger(__name__)
@@ -82,19 +83,17 @@ class Sndbox(Report):
         Args:
             s3: the location of the uploaded gzipped report on s3
             sample: the sample JSON properties, was sent original from the web backend
+            trace: trace context of the Cuckoo span
 
         Returns:
             None
         """
-        message = {
+        data = {
             "sample": sample,
             "payload": s3
         }
 
-        self._sns.publish(
-            TopicArn=self.options.completed_sns_arn,
-            Message=json.dumps(message)
-        )
+        requests.post(self.options.get('sndbox_api', None) + '/onprem/complete', json=data)
 
     def send_failure_notification(self, sample, logs, message=None):
         """
@@ -152,32 +151,34 @@ class Sndbox(Report):
             return
 
         debug = results['debug']
-        sample = json.loads(results['info']['custom'])
-
-        process_error = self.has_process_error(debug)
+        custom = json.loads(results['info']['custom'])
+        sample = custom["sample"]
         has_no_behavior = not results.get("behavior", False)
+        process_error = self.has_process_error(debug)
 
         if process_error:
             logger.warning("First process related error was found")
+            results["reporting_status"] = "processerror"
 
-            self.remove_from_queue(sample['receipt_handle'])
+            # this will occur on all VMs, no point in retrying
+            self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
 
             self.send_failure_notification(
                 sample,
                 debug,
                 process_error  # pass the error to the user
             )
+            return
 
-        elif debug['errors'] or has_no_behavior:
+        if debug['errors'] or has_no_behavior:
             # don't remove from the queue, retries might be
             # helpful here since this might be an issue with this host only.
-            logger.warning("No behavior was found")
+            logger.error("No behavior was found")
+            results["reporting_status"] = "nobehavior"
+            # change message visibility to 0 in order for another consumer to immediately pull it
+            self._sqs.change_message_visibility(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'], VisibilityTimeout=0)
+            return
 
-            self.send_failure_notification(
-                sample,
-                debug
-            )
-
-        else:
-            self.send_success_notification(results["s3"], sample)
-            self.remove_from_queue(sample['receipt_handle'])
+        self.send_success_notification(results["s3"], sample)
+        self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
+        results["reporting_status"] = "completed"

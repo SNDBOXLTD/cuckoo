@@ -3,3 +3,4 @@
 *.pyc
 python_distpackages_cuckoo/cuckoo/data-private/.cwd
 venv/
+Pipfile*
