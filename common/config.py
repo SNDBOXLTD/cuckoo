@@ -754,18 +754,10 @@ class Config(object):
                 "key_id": String(),
                 "access_key": String(),
             },
-            "sndbox": {
-                "enabled": Boolean(True),
-                "sndbox_api": String(),
-                "amqp_endpoint": String(),
-            },
             "tasksummary": {
                 "enabled": Boolean(True),
             },
             "reformat": {
-                "enabled": Boolean(True)
-            },
-            "cleanup": {
                 "enabled": Boolean(True)
             },
             "moloch": {
