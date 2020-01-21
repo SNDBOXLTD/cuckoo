@@ -46,11 +46,11 @@ class Sndbox(Report):
         cls._sns = boto3.client("sns")
         cls._sqs = boto3.client('sqs')
 
-    def send_success_notification(self, s3, sample, trace):
+    def send_success_notification(self, gcs, sample, trace):
         """
         sends an SNS notification, along with the
         Args:
-            s3: the location of the uploaded gzipped report on s3
+            gcs: the location of the uploaded gzipped report on gcs
             sample: the sample JSON properties, was sent original from the web backend
             trace: trace context of the Cuckoo span
 
@@ -61,7 +61,7 @@ class Sndbox(Report):
 
         message = {
             "sample": sample,
-            "payload": s3
+            "payload": gcs
         }
 
         self._sns.publish(
@@ -120,8 +120,8 @@ class Sndbox(Report):
         :return:
         """
 
-        if "s3" not in results:
-            logger.critical("S3 upload was not successful, aborting")
+        if "gcs" not in results:
+            logger.critical("gcs upload was not successful, aborting")
             return
 
         debug = results['debug']
@@ -153,6 +153,6 @@ class Sndbox(Report):
             self._sqs.change_message_visibility(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'], VisibilityTimeout=0)
             return
 
-        self.send_success_notification(results["s3"], sample, custom.get('trace'))
+        self.send_success_notification(results["gcs"], sample, custom.get('trace'))
         self._sqs.delete_message(QueueUrl=custom['source_queue'], ReceiptHandle=custom['receipt_handle'])
         results["reporting_status"] = "completed"

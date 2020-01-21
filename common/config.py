@@ -747,7 +747,7 @@ class Config(object):
                 "index_time_pattern": String("yearly"),
                 "cuckoo_node": String(),
             },
-            "s3": {
+            "gcs": {
                 "enabled": Boolean(True),
                 "bucket": String()
             },
