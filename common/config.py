@@ -747,26 +747,10 @@ class Config(object):
                 "index_time_pattern": String("yearly"),
                 "cuckoo_node": String(),
             },
-            "s3": {
-                "enabled": Boolean(True),
-                "bucket": String(),
-                "endpoint": String(),
-                "key_id": String(),
-                "access_key": String(),
-            },
-            "sndbox": {
-                "enabled": Boolean(True),
-                "completed_sns_arn": String(),
-                "failed_sns_arn": String(),
-                "sndbox_api": String()
-            },
             "tasksummary": {
                 "enabled": Boolean(True),
             },
             "reformat": {
-                "enabled": Boolean(True)
-            },
-            "cleanup": {
                 "enabled": Boolean(True)
             },
             "moloch": {
