@@ -10,10 +10,13 @@ import boto3
 import os
 import json
 import gzip
+from zipfile import ZipFile, ZIP_DEFLATED
 import logging
 
 log = logging.getLogger(__name__)
 s3 = boto3.client("s3")
+
+MEMORY_DUMP_EXT = ".dmp"
 
 
 class S3(Report):
@@ -74,12 +77,38 @@ class S3(Report):
     def upload_dropped(self, dropped_files, s3_path, s3_key):
         for dropped in dropped_files:
             path = dropped["path"]
+            if path.endswith(MEMORY_DUMP_EXT):
+                continue
             if not os.path.isfile(path):
                 log.warning("dropped file at {} was not found".format(path))
                 continue
 
             save_in = "{base}/dropped_files/{key}/{sha256}".format(base=s3_path, key=s3_key, sha256=dropped["sha256"])
-            s3.upload_file(path, self.options.bucket, save_in, ExtraArgs={"Metadata": {"original_name": dropped["name"]}})
+            s3.upload_file(path, self.options.bucket, save_in, ExtraArgs={
+                           "Metadata": {"original_name": dropped["name"]}})
+
+    def zip_memdumps(self, memdump_files, name):
+        """
+        ZIP all memdump files, saves it into a temp location
+        :param name: desired GZIP file name
+        :return: the location of the GZIP file
+        """
+        zipped_memdump_path = os.path.join(self.reports_path, "memdump.zip")
+        with ZipFile(zipped_memdump_path, 'w', ZIP_DEFLATED) as zipObj:
+            for memdump in memdump_files:
+                path = memdump["path"]
+                if os.path.isfile(path):
+                    memdump_filename = os.path.basename(path)
+                    zipObj.write(path, memdump_filename)
+        return zipped_memdump_path
+
+    def upload_memdump_zip(self, memdump_path,  s3_path, name):
+        if os.path.isfile(memdump_path):
+            save_in = s3_path + "/memdumps/" + name + ".zip"
+            s3.upload_file(memdump_path, self.options.bucket, save_in)
+            return save_in
+        else:
+            log.critical("MEMDUMP File %s is missing" % memdump_path)
 
     def run(self, results):
         """
@@ -94,7 +123,15 @@ class S3(Report):
         self.upload_pcap(pcap_path, sample["s3_path"], sample["s3_key"])
 
         if results.get("dropped"):
-            self.upload_dropped(results["dropped"], sample["s3_path"], sample["s3_key"])
+            
+            dropped_without_memdump = [dropped for dropped in results["dropped"] if not dropped["path"].endswith(MEMORY_DUMP_EXT)]
+            dropped_memdump = [dropped for dropped in results["dropped"] if dropped["path"].endswith(MEMORY_DUMP_EXT)]
+
+            self.upload_dropped(dropped_without_memdump, sample["s3_path"], sample["s3_key"])
+
+            zipped_memdump_path = self.zip_memdumps(dropped_memdump, sample["s3_key"])
+            if zipped_memdump_path:
+                self.upload_memdump_zip(zipped_memdump_path, sample["s3_path"], sample["s3_key"])
 
         gzipped_report_path = self.gzip_report(sample["s3_key"])
         if gzipped_report_path:
