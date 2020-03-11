@@ -11,7 +11,7 @@ import shlex
 
 from cuckoo.common.abstracts import BehaviorHandler
 from cuckoo.common.netlog import BsonParser
-from cuckoo.common.utils import guid_name, jsbeautify, htmlprettify, handle_hex_stream
+from cuckoo.common.utils import guid_name, jsbeautify, htmlprettify
 
 log = logging.getLogger(__name__)
 
@@ -178,10 +178,6 @@ class MonitorProcessLog(list):
             event["flags"]["iid"] = [guid_name(x) for x in iid]
         elif guid_name(iid):
             event["flags"]["iid"] = guid_name(iid)
-
-    def _api_ZwQueryValueKey(self, event):
-        if 'Data' in event['arguments']:
-            event['arguments']['Data'] = handle_hex_stream(event['arguments']['Data'])
 
     def __iter__(self):
         self.init()
@@ -532,9 +528,7 @@ class BehaviorReconstructor(object):
             return single("registry_read", {
                 "key":  self.registry[handle],
                 "value": arguments['ValueName'],
-                # Cuckoo's MonitorProcessLog beautifies the API call after this point
-                # we have to handle it again
-                "data": handle_hex_stream(arguments["Data"])
+                "data": arguments["Data"]
             })
 
     def _api_ZwSetValueKey(self, status, arguments, flags):
