@@ -12,6 +12,7 @@ import json
 import gzip
 from zipfile import ZipFile, ZIP_DEFLATED
 import logging
+import hashlib
 
 log = logging.getLogger(__name__)
 s3 = boto3.client("s3")
