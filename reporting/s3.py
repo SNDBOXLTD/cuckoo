@@ -12,6 +12,7 @@ import json
 import gzip
 from zipfile import ZipFile, ZIP_DEFLATED
 import logging
+from sndbox.memdumpDuplicatesRemover import MemdumpDuplicatesRemover
 
 log = logging.getLogger(__name__)
 s3 = boto3.client("s3")
@@ -123,9 +124,14 @@ class S3(Report):
         self.upload_pcap(pcap_path, sample["s3_path"], sample["s3_key"])
 
         if results.get("dropped"):
-            
-            dropped_without_memdump = [dropped for dropped in results["dropped"] if not dropped["path"].endswith(MEMORY_DUMP_EXT)]
+
+            dropped_without_memdump = [dropped for dropped in results["dropped"]
+                                       if not dropped["path"].endswith(MEMORY_DUMP_EXT)]
             dropped_memdump = [dropped for dropped in results["dropped"] if dropped["path"].endswith(MEMORY_DUMP_EXT)]
+
+            # remove duplicate memdumps
+            dropped_memdump_paths = [dropped["path"] for dropped in dropped_memdump]
+            MemdumpDuplicatesRemover(dropped_memdump_paths).check_for_duplicates()
 
             self.upload_dropped(dropped_without_memdump, sample["s3_path"], sample["s3_key"])
 
