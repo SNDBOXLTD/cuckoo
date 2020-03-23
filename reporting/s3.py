@@ -26,6 +26,7 @@ class MemdumpDuplicatesRemover(object):
 
     def __init__(self, paths):
         self.paths = paths
+        log.info("Duplicate remover init with %d dumps", len(self.paths))
 
     def _chunk_reader(self, fobj, chunk_size=1024):
         """Generator that reads a file in chunks of bytes"""
@@ -99,7 +100,7 @@ class MemdumpDuplicatesRemover(object):
 
                 duplicate = hashes_full.get(full_hash)
                 if duplicate:
-                    print("Duplicate found: %s and %s" % (filename, duplicate))
+                    log.info("Duplicate found: %s and %s" % (filename, duplicate))
                     os.remove(filename)
                 else:
                     hashes_full[full_hash] = filename
