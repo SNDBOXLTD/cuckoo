@@ -850,6 +850,7 @@ class Config(object):
                 "interface": String("eth0"),
                 "machines": List(String, "analysis1"),
                 "unverified_ssl": Boolean(False),
+                "vm_folder": String(),
             },
             "*": {
                 "__section__": "analysis1",

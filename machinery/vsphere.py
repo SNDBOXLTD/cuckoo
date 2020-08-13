@@ -19,6 +19,7 @@ from cuckoo.common.exceptions import CuckooCriticalError
 
 try:
     from pyVim.connect import SmartConnection
+
     HAVE_PYVMOMI = True
 except ImportError:
     HAVE_PYVMOMI = False
@@ -213,38 +214,39 @@ class vSphere(Machinery):
             self.set_status(label, status)
             return status
 
+    def _find_vm_folder(self, conn):
+        """
+        Find the the VM folder in the DC using the absolute path
+        """
+        search_index = conn.content.searchIndex
+        vm_folder = search_index.FindByInventoryPath(self.options.vsphere.vm_folder)
+
+        if not vm_folder:
+            raise CuckooCriticalError("Could not find folder {}".format(self.options.vsphere.vm_folder))
+
+        return vm_folder
+
     def _get_virtual_machines(self, conn):
-        """Iterate over all VirtualMachine managed objects on vSphere host"""
-        def traverseDCFolders(conn, nodes, path=""):
-            for node in nodes:
-                if hasattr(node, "childEntity"):
-                    for child, childpath in traverseDCFolders(conn, node.childEntity, path + node.name + "/"):
-                        yield child, childpath
-                else:
-                    yield node, path + node.name
+        """
+        Get all registered VMs within our scope
+        """
+        folder = self._find_vm_folder(conn)
+        if not hasattr(folder, 'childEntity'):
+            return
 
-        def traverseVMFolders(conn, nodes):
-            for node in nodes:
-                if hasattr(node, "childEntity"):
-                    for child in traverseVMFolders(conn, node.childEntity):
-                        yield child
-                else:
-                    yield node
-
-        self.VMtoDC = {}
-
-        for dc, dcpath in traverseDCFolders(conn, conn.content.rootFolder.childEntity):
-            for vm in traverseVMFolders(conn, dc.vmFolder.childEntity):
-                if hasattr(vm.summary.config, "name"):
-                    self.VMtoDC[vm.summary.config.name] = dcpath
-                    yield vm
+        for vm in folder.childEntity:
+            yield vm
 
     def _get_virtual_machine_by_label(self, conn, label):
-        """Return the named VirtualMachine managed object"""
-        for vm in self._get_virtual_machines(conn):
-            if hasattr(vm.summary.config, "name"):
-                if vm.summary.config.name == label:
-                    return vm
+        """
+        Return the named VirtualMachine managed object
+        We limit the search scope to our VM folder only, this improves lookup times.
+        See https://github.com/cuckoosandbox/cuckoo/issues/2902
+        """
+        folder = self._find_vm_folder(conn)
+
+        search_index = conn.content.searchIndex
+        return search_index.FindChild(folder, label)
 
     def _get_snapshot_by_name(self, vm, name):
         """Return the named VirtualMachineSnapshot managed object for
@@ -304,11 +306,20 @@ class vSphere(Machinery):
                 vm.summary.config.name, name
             )
 
+            start = time.time()
+
             task = snapshot.RevertToSnapshot_Task()
             try:
                 self._wait_task(task)
             except CuckooMachineError as e:
                 raise CuckooMachineError("RevertToSnapshot: %s" % e)
+
+            end = time.time()
+
+            log.info(
+                "Reverted machine %s to snapshot %s in %d seconds",
+                vm.summary.config.name, name, end - start
+            )
         else:
             raise CuckooMachineError(
                 "Snapshot %s for machine %s not found" %
@@ -373,7 +384,7 @@ class vSphere(Machinery):
             response.raise_for_status()
 
             with open(path, "wb") as localfile:
-                for chunk in response.iter_content(16*1024):
+                for chunk in response.iter_content(16 * 1024):
                     localfile.write(chunk)
 
         except Exception as e:
